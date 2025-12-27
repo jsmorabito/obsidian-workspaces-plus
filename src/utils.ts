@@ -205,6 +205,43 @@ export default class Utils {
     }
   }
 
+  captureOpenFiles(workspace: any): { [key: string]: string } {
+    const openFiles: { [key: string]: string } = {};
+    
+    function extractFiles(split: any): void {
+      if (split.type === "leaf") {
+        const file = split.state?.state?.file;
+        if (file && split.id) {
+          openFiles[split.id] = file;
+        }
+      } else if (split.type === "split" || split.type === "tabs") {
+        split.children?.forEach((child: any) => {
+          extractFiles(child);
+        });
+      }
+    }
+    
+    if (workspace?.main) {
+      extractFiles(workspace.main);
+    }
+    
+    return openFiles;
+  }
+
+  async restoreOpenFiles(workspaceName: string, workspace: any): Promise<void> {
+    const workspaceSettings = this.getWorkspaceSettings(workspaceName);
+    const trackedFiles = workspaceSettings?.trackedFiles;
+    
+    if (!trackedFiles) return;
+    
+    for (const [leafId, filePath] of Object.entries(trackedFiles)) {
+      const file = this.app.vault.getAbstractFileByPath(normalizePath(filePath as string)) as TFile;
+      if (file) {
+        this.setChildId(workspace.main, leafId, file.path);
+      }
+    }
+  }
+
   getModeSettings (name: string) {
     if (this.isMode(name)) return this.getWorkspaceSettings(name);
   }
