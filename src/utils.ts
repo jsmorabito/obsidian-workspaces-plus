@@ -237,7 +237,11 @@ export default class Utils {
     for (const [leafId, filePath] of Object.entries(trackedFiles)) {
       const file = this.app.vault.getAbstractFileByPath(normalizePath(filePath as string)) as TFile;
       if (file) {
+        // FIle is found, set it
         this.setChildId(workspace.main, leafId, file.path);
+      } else {
+        // File not found, is not found, create a new one to keep layout intact
+        this.setChildId(workspace.main, leafId, null);
       }
     }
   }
