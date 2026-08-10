@@ -28,6 +28,8 @@ Workspaces Plus is a plugin that expands the functionality of [workspaces](https
 
 - open Workspaces Plus switcher modal
 - open specific workspace by name
+- cycle to the next workspace
+- save the current workspace and cycle to the next workspace
 
 ### Plugin Options
 

@@ -13,6 +13,7 @@ import { WorkspacesPlusPluginWorkspaceModal } from "./workspaceModal";
 import { WorkspacesPlusPluginModeModal } from "./modeModal";
 import { around } from "monkey-around";
 import Utils from "./utils";
+import { cycleWorkspace as runWorkspaceCycle } from "./workspaceCycle";
 
 export default class WorkspacesPlus extends Plugin {
   settings: WorkspacesPlusSettings;
@@ -129,6 +130,26 @@ export default class WorkspacesPlus extends Plugin {
         new Notice("Successfully saved workspace: " + this.workspacePlugin.activeWorkspace);
       },
     });
+    this.addCommand({
+      id: "cycle-workspace",
+      name: "Cycle to next workspace",
+      callback: () => this.cycleWorkspace(),
+    });
+    this.addCommand({
+      id: "save-and-cycle-workspace",
+      name: "Save current workspace and cycle to next",
+      callback: () => this.cycleWorkspace(true),
+    });
+  }
+
+  cycleWorkspace(saveCurrent: boolean = false): void {
+    const activeWorkspace = this.workspacePlugin.activeWorkspace;
+    runWorkspaceCycle(
+      Object.keys(this.workspacePlugin.workspaces),
+      activeWorkspace,
+      workspaceName => this.workspacePlugin.loadWorkspace(workspaceName),
+      saveCurrent ? workspaceName => this.workspacePlugin.saveWorkspace(workspaceName) : undefined
+    );
   }
 
   registerEventHandlers() {
