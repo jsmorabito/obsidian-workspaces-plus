@@ -36,7 +36,7 @@ export class ConfirmationModal extends Modal {
           }
         })();
       });
-      setTimeout(() => {
+      window.setTimeout(() => {
         btnSumbit.focus();
       }, 50);
     });

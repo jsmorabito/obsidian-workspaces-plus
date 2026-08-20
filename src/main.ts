@@ -56,7 +56,7 @@ export default class WorkspacesPlus extends Plugin {
 
       this.backupCoreConfig();
 
-      setTimeout(() => {
+      window.setTimeout(() => {
         this.registerWorkspaceHotkeys();
         this.setWorkspaceAttribute();
         this.addStatusBarIndicator.apply(this);
@@ -452,7 +452,7 @@ export default class WorkspacesPlus extends Plugin {
 
   reloadIfNeeded = debounce(() => {
     function sleep(ms: number) {
-      return new Promise(resolve => setTimeout(resolve, ms));
+      return new Promise(resolve => window.setTimeout(resolve, ms));
     }
     // this is currently the only way to tell if CM6 is actually loaded on desktop
     const isLoaded = (this.app as any).commands.editorCommands["editor:toggle-source"] ? true : false;
@@ -482,7 +482,7 @@ export default class WorkspacesPlus extends Plugin {
     // this.app.changeBaseFontSize(settings?.baseFontSize as number);
     this.app.customCss.loadData();
     this.app.customCss.applyCss();
-    setTimeout(() => {
+    window.setTimeout(() => {
       (<any>this.app).enableCssTransition();
     }, 1000);
   }
@@ -502,7 +502,7 @@ export default class WorkspacesPlus extends Plugin {
 
   setLoadingStatus(): void {
     this.workspaceLoading = true;
-    setTimeout(() => {
+    window.setTimeout(() => {
       this.workspaceLoading = false;
     }, 2000);
   }
