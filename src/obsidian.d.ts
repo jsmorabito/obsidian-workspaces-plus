@@ -1,3 +1,6 @@
+/* eslint-disable no-undef -- Events/EventRef are members of the "obsidian" module being
+   augmented below; TS resolves them implicitly inside declare module, but eslint's no-undef
+   doesn't understand that TS-specific semantics. tsc has no complaints, and the build succeeds. */
 import "obsidian";
 
 declare module "obsidian" {
