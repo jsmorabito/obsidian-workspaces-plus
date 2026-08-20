@@ -250,8 +250,8 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
   renderSuggestion(item: FuzzyMatch<any>, el: HTMLElement): void {
     super.renderSuggestion(item, el);
     const workspaceName = el.textContent;
-    const resultEl = document.body.querySelector("div.workspaces-plus-modal div.prompt-results") as HTMLElement;
-    const existingEl = resultEl.querySelector('div[data-workspace-name="' + workspaceName + '"]') as HTMLElement;
+    const resultEl = document.body.querySelector<HTMLElement>("div.workspaces-plus-modal div.prompt-results");
+    const existingEl = resultEl.querySelector<HTMLElement>('div[data-workspace-name="' + workspaceName + '"]');
     let wrapperEl;
     if (existingEl) {
       wrapperEl = existingEl;
