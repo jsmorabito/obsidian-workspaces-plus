@@ -7,6 +7,7 @@
     "dev": "rollup --config rollup.config.js -w",
     "build": "rollup --config rollup.config.js --environment BUILD:production",
     "test": "node tests/workspaceCycle.test.js",
+    "lint": "eslint .",
     "release": "auto shipit"
   },
   "keywords": [],
@@ -20,6 +21,9 @@
     "@types/node": "^14.14.37",
     "auto": "^10.31.0",
     "auto-plugin-obsidian": "^0.1.4",
+    "eslint": "^10.8.1",
+    "eslint-plugin-obsidianmd": "^0.4.1",
+    "globals": "^17.11.0",
     "obsidian": "^1.1.1",
     "rollup": "^2.32.1",
     "tslib": "^2.2.0",
