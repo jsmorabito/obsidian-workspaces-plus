@@ -565,14 +565,23 @@ export default class WorkspacesPlus extends Plugin {
               if (workspace) {
                 this.activeWorkspace = workspaceName;
                 // Restore tracked files along with overrides
-                const restore = plugin.settings.trackOpenFiles
-                  ? plugin.utils
-                      .restoreOpenFiles(workspaceName, workspace)
-                      .then(() => plugin.utils.applyFileOverrides(workspaceName, workspace))
+                const restore: Promise<string[]> = plugin.settings.trackOpenFiles
+                  ? plugin.utils.restoreOpenFiles(workspaceName, workspace).then(async restoredLeafIds => {
+                      const overriddenLeafIds = await plugin.utils.applyFileOverrides(workspaceName, workspace);
+                      return [...restoredLeafIds, ...overriddenLeafIds];
+                    })
                   : plugin.utils.applyFileOverrides(workspaceName, workspace);
                 restore
-                  .then(() => {
-                    void this.app.workspace.changeLayout(workspace);
+                  .then(async loadedLeafIds => {
+                    await this.app.workspace.changeLayout(workspace);
+                    // changeLayout() creates the leaves but leaves in the background stay
+                    // "deferred" (a lightweight placeholder) until focused -- force-load the
+                    // ones we just set a file on so they render immediately instead of only
+                    // on click.
+                    for (const leafId of loadedLeafIds) {
+                      const leaf = this.app.workspace.getLeafById(leafId);
+                      if (leaf?.isDeferred) await leaf.loadIfDeferred();
+                    }
                     this.saveData();
                   })
                   .catch((e: unknown) => {
