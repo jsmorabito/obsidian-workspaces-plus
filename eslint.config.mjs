@@ -29,12 +29,14 @@ export default defineConfig(
   },
   ...obsidianmd.configs.recommended,
   {
-    // settings.ts intentionally implements getSettingDefinitions/getControlValue/setControlValue/
-    // update() (Obsidian 1.13.0+) alongside display() as a fallback for 1.8.7-1.12.x. Obsidian itself
-    // only calls the newer methods when getSettingDefinitions() is in play, i.e. only on 1.13.0+, so
-    // no-unsupported-api's warning doesn't apply here -- this file is a deliberate two-tier
-    // implementation, not an accidental version mismatch.
-    files: ["src/settings.ts"],
+    // settingsDeclarative.ts implements getSettingDefinitions/getControlValue/setControlValue
+    // (Obsidian 1.13.0+), used by WorkspacesPlusSettingsTab alongside display() in settings.ts
+    // as a fallback for 1.8.7-1.12.x. Obsidian itself only calls the newer methods when
+    // getSettingDefinitions() is in play, i.e. only on 1.13.0+, so no-unsupported-api's warning
+    // doesn't apply here -- this file is a deliberate two-tier implementation, not an
+    // accidental version mismatch. Scoped to just this file (not all of settings.ts) so the
+    // check stays active for display() and the rest of the settings tab.
+    files: ["src/settingsDeclarative.ts"],
     rules: {
       "obsidianmd/no-unsupported-api": "off",
     },

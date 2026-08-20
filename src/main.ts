@@ -1,4 +1,12 @@
-import { Plugin, WorkspacePluginInstance, setIcon, Notice, debounce, WorkspaceCustomSettings } from "obsidian";
+import {
+  Plugin,
+  WorkspacePluginInstance,
+  setIcon,
+  Notice,
+  debounce,
+  WorkspaceCustomSettings,
+  WorkspaceLeaf,
+} from "obsidian";
 import { WorkspacesPlusSettings, WorkspacesPlusSettingsTab, DEFAULT_SETTINGS } from "./settings";
 import { WorkspacesPlusPluginWorkspaceModal } from "./workspaceModal";
 import { WorkspacesPlusPluginModeModal } from "./modeModal";
@@ -18,6 +26,17 @@ export default class WorkspacesPlus extends Plugin {
   nativeWorkspaceRibbonItem: HTMLElement;
   isNativePluginEnabled: boolean;
   utils: Utils;
+  // Set when setPlatformWorkspace() triggers a workspace-load at startup, so
+  // enableModesFeature()'s own onWorkspaceLoad() bootstrap call can skip re-running it.
+  // One-shot: consumed (cleared) the first time enableModesFeature() checks it, so a later,
+  // user-triggered call to enableModesFeature() (e.g. toggling modes on mid-session) still
+  // does its own onWorkspaceLoad() call as before.
+  private startupWorkspaceLoadTriggered = false;
+  // Incremented on every non-mode loadWorkspace() invocation. Lets an in-flight restore chain
+  // (restoreOpenFiles/applyFileOverrides -> changeLayout -> deferred-leaf loading -> saveData)
+  // recognize it's been superseded by a newer workspace switch and bail out instead of
+  // re-applying a stale layout or persisting stale data over the newer switch.
+  private workspaceLoadGeneration = 0;
 
   async onload() {
     this.debug = false;
@@ -50,9 +69,12 @@ export default class WorkspacesPlus extends Plugin {
     this.registerCommands();
 
     this.app.workspace.onLayoutReady(() => {
-      this.setPlatformWorkspace();
-      // store current Obsidian settings into local plugin storage
+      // store current Obsidian settings into local plugin storage -- must run before
+      // setPlatformWorkspace(), which can trigger a synchronous workspace-load that reads
+      // globalSettings back via mergeGlobalSettings(); if globalSettings were still empty at
+      // that point, applySettings() would overwrite (and persist) an empty app.vault.config.
       if (this.settings.workspaceSettings) this.storeGlobalSettings();
+      this.setPlatformWorkspace();
 
       this.backupCoreConfig();
 
@@ -173,6 +195,7 @@ export default class WorkspacesPlus extends Plugin {
       // that label; without an actual reload, the status bar can end up naming a workspace whose
       // layout was never restored, disagreeing with whatever Obsidian's native session-restore
       // happened to reopen.
+      this.startupWorkspaceLoadTriggered = true;
       this.workspacePlugin.loadWorkspace(_activeWorkspace);
     }
   }
@@ -222,8 +245,14 @@ export default class WorkspacesPlus extends Plugin {
         name: "Open mode switcher",
         callback: () => new WorkspacesPlusPluginModeModal(this, this.settings, true).open(),
       });
-      if (this.debug) console.debug("toggle load", this.workspacePlugin.activeWorkspace);
-      this.onWorkspaceLoad(this.workspacePlugin.activeWorkspace);
+      if (this.startupWorkspaceLoadTriggered) {
+        // setPlatformWorkspace() already fired a workspace-load (and therefore
+        // onWorkspaceLoad) synchronously at startup -- avoid running it a second time.
+        this.startupWorkspaceLoadTriggered = false;
+      } else {
+        if (this.debug) console.debug("toggle load", this.workspacePlugin.activeWorkspace);
+        this.onWorkspaceLoad(this.workspacePlugin.activeWorkspace);
+      }
       this.registerEvent(this.app.vault.on("config-changed", this.onConfigChange));
     }
   }
@@ -569,30 +598,44 @@ export default class WorkspacesPlus extends Plugin {
               const workspace = this.workspaces[workspaceName];
               if (workspace) {
                 this.activeWorkspace = workspaceName;
-                // Restore tracked files along with overrides
-                const restore: Promise<string[]> = plugin.settings.trackOpenFiles
-                  ? plugin.utils.restoreOpenFiles(workspaceName, workspace).then(async restoredLeafIds => {
-                      const overriddenLeafIds = await plugin.utils.applyFileOverrides(workspaceName, workspace);
-                      return [...restoredLeafIds, ...overriddenLeafIds];
-                    })
+                // Guards against a rapid second switch superseding this one while its restore
+                // chain is still in flight (see the generation checks below).
+                const generation = ++plugin.workspaceLoadGeneration;
+                // Restore tracked files, then overrides -- sequential (not Promise.all) is
+                // intentional: when the same leaf is both tracked and overridden, the override
+                // must win, which only holds if it's applied after restoreOpenFiles.
+                const restore: Promise<void> = plugin.settings.trackOpenFiles
+                  ? plugin.utils
+                      .restoreOpenFiles(workspaceName, workspace)
+                      .then(() => plugin.utils.applyFileOverrides(workspaceName, workspace))
                   : plugin.utils.applyFileOverrides(workspaceName, workspace);
                 restore
-                  .then(async loadedLeafIds => {
+                  .catch((e: unknown) => {
+                    // Swallow and continue to changeLayout() regardless -- both
+                    // restoreOpenFiles and applyFileOverrides already isolate per-leaf
+                    // errors internally, so a rejection here means something unexpected
+                    // happened, not "nothing was restored."
+                    console.error("failed to restore files:", e);
+                  })
+                  .then(async () => {
+                    // A newer switch started while restore was running -- applying this
+                    // (now-stale) layout would revert the user's screen back to it.
+                    if (generation !== plugin.workspaceLoadGeneration) return;
                     await this.app.workspace.changeLayout(workspace);
-                    // changeLayout() creates the leaves but leaves in the background stay
-                    // "deferred" (a lightweight placeholder) until focused -- force-load the
-                    // ones we just set a file on so they render immediately instead of only
-                    // on click.
-                    for (const leafId of loadedLeafIds) {
-                      const leaf = this.app.workspace.getLeafById(leafId);
-                      if (leaf?.isDeferred) await leaf.loadIfDeferred();
-                    }
-                    this.saveData();
+                    if (generation !== plugin.workspaceLoadGeneration) return;
+                    // changeLayout() creates the leaves, but leaves in the background stay
+                    // "deferred" (a lightweight placeholder) until focused. Force-load every
+                    // deferred leaf in the workspace -- not just the ones this plugin wrote a
+                    // file into -- since any background leaf can be left in that state.
+                    const leaves: WorkspaceLeaf[] = [];
+                    this.app.workspace.iterateAllLeaves(leaf => leaves.push(leaf));
+                    await Promise.all(
+                      leaves.filter(leaf => leaf.isDeferred).map(leaf => leaf.loadIfDeferred())
+                    );
+                    if (generation === plugin.workspaceLoadGeneration) this.saveData();
                   })
                   .catch((e: unknown) => {
-                    console.error("failed to restore files:", e);
-                    void this.app.workspace.changeLayout(workspace);
-                    this.saveData();
+                    console.error("failed to apply workspace layout:", e);
                   });
               }
             }

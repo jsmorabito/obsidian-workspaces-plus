@@ -188,35 +188,35 @@ export default class Utils {
     return result.find(filePath => filePath);
   }
 
-  // Returns the leaf IDs that got a real file applied, so the caller can force-load them past
-  // Obsidian's deferred-view optimization after changeLayout() -- otherwise a background leaf's
-  // overridden file doesn't actually render until the user clicks that tab.
-  async applyFileOverrides (workspaceName: string, workspace: Workspaces): Promise<string[]> {
+  async applyFileOverrides (workspaceName: string, workspace: Workspaces): Promise<void> {
     const workspaceSettings = this.getWorkspaceSettings(workspaceName);
     const fileOverrides = workspaceSettings?.fileOverrides;
-    const appliedLeafIds: string[] = [];
     if (fileOverrides) {
       await Promise.all(
         Object.entries(fileOverrides).map(async ([leafId, fileName]: [string, string]) => {
-          let parsedFileName = this.renderTemplateString(fileName);
+          // Each entry is isolated so one bad override (e.g. a periodic-note template that
+          // fails to resolve) can't abort the whole batch and lose overrides that would
+          // otherwise have applied fine.
+          try {
+            let parsedFileName = this.renderTemplateString(fileName);
 
-          await this.getPeriodicNoteFromPath(parsedFileName);
-          const abstractFile = this.app.vault.getAbstractFileByPath(normalizePath(parsedFileName));
-          const file = abstractFile instanceof TFile ? abstractFile : null;
-          if (!file) {
-            fileName = null;
-          }
-          const result = this.setChildId(workspace.main, leafId, file?.path);
-          if (!result) {
-            // clean up any overrides for panes that no longer exist
-            delete fileOverrides[leafId];
-          } else if (file) {
-            appliedLeafIds.push(leafId);
+            await this.getPeriodicNoteFromPath(parsedFileName);
+            const abstractFile = this.app.vault.getAbstractFileByPath(normalizePath(parsedFileName));
+            const file = abstractFile instanceof TFile ? abstractFile : null;
+            if (!file) {
+              fileName = null;
+            }
+            const result = this.setChildId(workspace.main, leafId, file?.path);
+            if (!result) {
+              // clean up any overrides for panes that no longer exist
+              delete fileOverrides[leafId];
+            }
+          } catch (e) {
+            console.error(`failed to apply file override for leaf ${leafId}:`, e);
           }
         })
       );
     }
-    return appliedLeafIds;
   }
 
   captureOpenFiles(workspace: Workspaces): { [key: string]: string } {
@@ -242,27 +242,26 @@ export default class Utils {
     return openFiles;
   }
 
-  // Returns the leaf IDs that got a real file restored -- see the comment on applyFileOverrides.
-  async restoreOpenFiles(workspaceName: string, workspace: Workspaces): Promise<string[]> {
+  async restoreOpenFiles(workspaceName: string, workspace: Workspaces): Promise<void> {
     const workspaceSettings = this.getWorkspaceSettings(workspaceName);
     const trackedFiles = workspaceSettings?.trackedFiles;
 
-    if (!trackedFiles) return [];
+    if (!trackedFiles) return;
 
-    const restoredLeafIds: string[] = [];
     for (const [leafId, filePath] of Object.entries(trackedFiles)) {
       const abstractFile = this.app.vault.getAbstractFileByPath(normalizePath(filePath));
       const file = abstractFile instanceof TFile ? abstractFile : null;
       if (file) {
         // FIle is found, set it
-        this.setChildId(workspace.main, leafId, file.path);
-        restoredLeafIds.push(leafId);
+        if (!this.setChildId(workspace.main, leafId, file.path)) {
+          // the leaf this file was tracked against no longer exists in the layout
+          delete trackedFiles[leafId];
+        }
       } else {
         // File not found, is not found, create a new one to keep layout intact
         this.setChildId(workspace.main, leafId, null);
       }
     }
-    return restoredLeafIds;
   }
 
   getModeSettings (name: string) {
