@@ -1,5 +1,5 @@
 import WorkspacesPlus from "./main";
-import { App, PluginSettingTab, Setting, setIcon } from "obsidian";
+import { App, PluginSettingTab, Setting, setIcon, WorkspaceLayoutNode } from "obsidian";
 import { FileSuggest } from "./suggesters/fileSuggest";
 
 export class WorkspacesPlusSettings {
@@ -36,11 +36,17 @@ export const DEFAULT_SETTINGS: WorkspacesPlusSettings = {
   trackOpenFiles: true,
 };
 
-function getChildIds (split: any, leafs: any[] = []): any[] {
+interface ChildLeafSummary {
+  id?: string;
+  file?: string | null;
+  mode?: unknown;
+}
+
+function getChildIds (split: WorkspaceLayoutNode, leafs: ChildLeafSummary[] = []): ChildLeafSummary[] {
   if (split.type === "leaf") {
-    leafs.push({ id: split.id, file: split.state.state.file, mode: split.state.state.mode });
+    leafs.push({ id: split.id, file: split.state?.state?.file, mode: split.state?.state?.mode });
   } else if (split.type === "split" || split.type === "tabs") {
-    split.children.forEach((child: any) => {
+    split.children?.forEach(child => {
       getChildIds(child, leafs);
     });
   }
@@ -260,7 +266,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
 
       new Setting(subContainerEL).setHeading().setName("File overrides");
 
-      getChildIds(workspace.main).forEach((leaf: any) => {
+      getChildIds(workspace.main).forEach(leaf => {
         let currentFile: string;
         if (workspaceSettings.fileOverrides && workspaceSettings.fileOverrides[leaf.id]) {
           currentFile = workspaceSettings.fileOverrides[leaf.id];
