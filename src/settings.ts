@@ -17,6 +17,7 @@ export class WorkspacesPlusSettings {
   workspaceSwitcherRibbon: boolean;
   modeSwitcherRibbon: boolean;
   replaceNativeRibbon: boolean;
+  trackOpenFiles: boolean;
 }
 
 export const DEFAULT_SETTINGS: WorkspacesPlusSettings = {
@@ -33,6 +34,7 @@ export const DEFAULT_SETTINGS: WorkspacesPlusSettings = {
   workspaceSwitcherRibbon: false,
   modeSwitcherRibbon: false,
   replaceNativeRibbon: false,
+  trackOpenFiles: true,
 };
 
 function getChildIds (split: any, leafs: any[] = []): any[] {
@@ -165,6 +167,19 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.saveOnChange).onChange(value => {
           this.plugin.settings.saveOnChange = value;
+          this.plugin.saveData(this.plugin.settings);
+        })
+      );
+
+    new Setting(containerEl)
+      .setName("Automatically track and restore open files")
+      .setDesc(
+        `When enabled, workspaces will remember which files were open and restore them when you switch back. ` +
+        `This preserves your exact layout and open notes across workspace switches.`
+      )
+      .addToggle(toggle =>
+        toggle.setValue(this.plugin.settings.trackOpenFiles).onChange(value => {
+          this.plugin.settings.trackOpenFiles = value;
           this.plugin.saveData(this.plugin.settings);
         })
       );

@@ -387,16 +387,29 @@ export default class WorkspacesPlus extends Plugin {
     if (!this.isNativePluginEnabled) return;
     this.setWorkspaceName();
     this.registerWorkspaceHotkeys();
+    
     if (!customSettings) {
       customSettings = this.utils.getWorkspaceSettings(workspaceName);
     } else {
       customSettings = this.utils.setWorkspaceSettings(workspaceName, customSettings);
     }
+    
+    // Capture currently open files if tracking is enabled
+    if (this.settings.trackOpenFiles) {
+      const currentWorkspace = this.workspacePlugin.workspaces[workspaceName];
+      if (currentWorkspace) {
+        const openFiles = this.utils.captureOpenFiles(currentWorkspace);
+        customSettings.trackedFiles = openFiles;
+      }
+    }
+    
     if (this.settings.workspaceSettings && this.utils.isMode(workspaceName)) {
       customSettings.app = this.app.vault.config;
     }
+    
     let explorerFoldState = await this.app.loadLocalStorage("file-explorer-unfold");
     if (explorerFoldState) customSettings.explorerFoldState = explorerFoldState;
+    
     this.workspacePlugin.saveData();
   };
 
@@ -546,24 +559,33 @@ export default class WorkspacesPlus extends Plugin {
             if (!workspaceName || !plugin.isNativePluginEnabled) return;
             plugin.setLoadingStatus();
             let result;
+            
             if (plugin.settings.workspaceSettings && plugin.utils.isMode(workspaceName)) {
               // if the workspace being loaded is a mode, invoke the mode loader
               let modeName = workspaceName;
               workspaceName = plugin.utils.activeWorkspace;
               result = plugin.utils.loadMode(workspaceName, modeName);
             } else {
-              // result = old.call(this, workspaceName, ...etc);
               const workspace = this.workspaces[workspaceName];
               if (workspace) {
-                // TODO: Ensure this stays in sync with the native Obsidian function
                 this.activeWorkspace = workspaceName;
                 try {
-                  plugin.utils.applyFileOverrides(workspaceName, workspace).then(() => {
-                    this.app.workspace.changeLayout(workspace);
-                    this.saveData();
-                  });
-                } catch {
-                  console.log("failed to apply overrides");
+                  // Restore tracked files along with overrides
+                  if (plugin.settings.trackOpenFiles) {
+                    plugin.utils.restoreOpenFiles(workspaceName, workspace).then(() => {
+                      plugin.utils.applyFileOverrides(workspaceName, workspace).then(() => {
+                        this.app.workspace.changeLayout(workspace);
+                        this.saveData();
+                      });
+                    });
+                  } else {
+                    plugin.utils.applyFileOverrides(workspaceName, workspace).then(() => {
+                      this.app.workspace.changeLayout(workspace);
+                      this.saveData();
+                    });
+                  }
+                } catch (e) {
+                  console.log("failed to restore files:", e);
                   this.app.workspace.changeLayout(workspace);
                   this.saveData();
                 }
