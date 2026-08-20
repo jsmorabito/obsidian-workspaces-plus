@@ -82,9 +82,9 @@ export default class WorkspacesPlus extends Plugin {
   }
 
   backupCoreConfig() {
-    this.backupConfigFile("workspaces");
-    this.backupConfigFile("app");
-    this.backupConfigFile("appearance");
+    void this.backupConfigFile("workspaces");
+    void this.backupConfigFile("app");
+    void this.backupConfigFile("appearance");
   }
 
   async backupConfigFile(configType: string): Promise<void> {
@@ -452,7 +452,7 @@ export default class WorkspacesPlus extends Plugin {
       this.applySettings(combinedSettings);
     }
     if (settings) this.utils.updateFoldState(settings);
-    this.saveData(this.settings);
+    void this.saveData(this.settings);
   };
 
   needsReload(settings: any) {
@@ -518,13 +518,13 @@ export default class WorkspacesPlus extends Plugin {
 
   updateGlobalSettings(): void {
     this.settings.globalSettings = Object.assign({}, this.settings.globalSettings, this.app.vault.config);
-    this.saveData(this.settings);
+    void this.saveData(this.settings);
   }
 
   storeGlobalSettings() {
     if (Object.keys(this.settings.globalSettings).length === 0) {
       this.settings.globalSettings = Object.assign({}, this.app.vault.config);
-      this.saveData(this.settings);
+      void this.saveData(this.settings);
     }
     return this.settings.globalSettings;
   }

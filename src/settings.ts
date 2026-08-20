@@ -73,7 +73,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.showInstructions).onChange(value => {
           this.plugin.settings.showInstructions = value;
-          this.plugin.saveData(this.plugin.settings);
+          void this.plugin.saveData(this.plugin.settings);
         })
       );
 
@@ -83,7 +83,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.showDeletePrompt).onChange(value => {
           this.plugin.settings.showDeletePrompt = value;
-          this.plugin.saveData(this.plugin.settings);
+          void this.plugin.saveData(this.plugin.settings);
         })
       );
 
@@ -93,7 +93,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.workspaceSwitcherRibbon).onChange(value => {
           this.plugin.settings.workspaceSwitcherRibbon = value;
-          this.plugin.saveData(this.plugin.settings);
+          void this.plugin.saveData(this.plugin.settings);
           this.plugin.toggleWorkspaceRibbonButton();
         })
       );
@@ -104,7 +104,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.replaceNativeRibbon).onChange(value => {
           this.plugin.settings.replaceNativeRibbon = value;
-          this.plugin.saveData(this.plugin.settings);
+          void this.plugin.saveData(this.plugin.settings);
           this.plugin.toggleNativeWorkspaceRibbon();
         })
       );
@@ -115,7 +115,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.modeSwitcherRibbon).onChange(value => {
           this.plugin.settings.modeSwitcherRibbon = value;
-          this.plugin.saveData(this.plugin.settings);
+          void this.plugin.saveData(this.plugin.settings);
           this.plugin.toggleModeRibbonButton();
         })
       );
@@ -146,7 +146,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
             if (value) setting.settingEl.addClass("is-enabled");
             else setting.settingEl.removeClass("is-enabled");
             this.plugin.settings.workspaceSettings = value;
-            this.plugin.saveData(this.plugin.settings);
+            void this.plugin.saveData(this.plugin.settings);
             if (value) this.plugin.enableModesFeature();
             else this.plugin.disableModesFeature();
           })
@@ -162,7 +162,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.saveOnChange).onChange(value => {
           this.plugin.settings.saveOnChange = value;
-          this.plugin.saveData(this.plugin.settings);
+          void this.plugin.saveData(this.plugin.settings);
         })
       );
 
@@ -175,7 +175,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.trackOpenFiles).onChange(value => {
           this.plugin.settings.trackOpenFiles = value;
-          this.plugin.saveData(this.plugin.settings);
+          void this.plugin.saveData(this.plugin.settings);
         })
       );
 
@@ -188,7 +188,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.systemDarkMode).onChange(value => {
           this.plugin.settings.systemDarkMode = value;
-          this.plugin.saveData(this.plugin.settings);
+          void this.plugin.saveData(this.plugin.settings);
         })
       );
 
@@ -202,7 +202,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.reloadLivePreview).onChange(value => {
           this.plugin.settings.reloadLivePreview = value;
-          this.plugin.saveData(this.plugin.settings);
+          void this.plugin.saveData(this.plugin.settings);
         })
       );
 

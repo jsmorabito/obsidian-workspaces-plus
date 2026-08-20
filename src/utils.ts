@@ -264,7 +264,7 @@ export default class Utils {
     const workspace = this.app.workspace;
     const currentLayout = workspace.getLayout();
     newLayout["main"] = currentLayout["main"];
-    workspace.changeLayout(newLayout);
+    void workspace.changeLayout(newLayout);
   }
 
   // Template string rendering with math. Credit to Liam Cain https://github.com/liamcain/obsidian-daily-notes-interface

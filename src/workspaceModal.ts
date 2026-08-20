@@ -175,7 +175,7 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
   }
 
   onOpen(): void {
-    super.onOpen();
+    void super.onOpen();
     this.activeWorkspace = this.workspacePlugin.activeWorkspace;
     let selectedIdx = this.getItems().findIndex(workspace => workspace === this.activeWorkspace);
     this.chooser.setSelectedItem(selectedIdx);
