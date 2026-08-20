@@ -1,4 +1,12 @@
-import { Plugin, WorkspacePluginInstance, setIcon, Notice, debounce, WorkspaceCustomSettings } from "obsidian";
+import {
+  Plugin,
+  WorkspacePluginInstance,
+  setIcon,
+  Notice,
+  debounce,
+  WorkspaceCustomSettings,
+  WorkspaceLeaf,
+} from "obsidian";
 import { WorkspacesPlusSettings, WorkspacesPlusSettingsTab, DEFAULT_SETTINGS } from "./settings";
 import { WorkspacesPlusPluginWorkspaceModal } from "./workspaceModal";
 import { WorkspacesPlusPluginModeModal } from "./modeModal";
@@ -593,36 +601,41 @@ export default class WorkspacesPlus extends Plugin {
                 // Guards against a rapid second switch superseding this one while its restore
                 // chain is still in flight (see the generation checks below).
                 const generation = ++plugin.workspaceLoadGeneration;
-                // Restore tracked files along with overrides
-                const restore: Promise<string[]> = plugin.settings.trackOpenFiles
-                  ? plugin.utils.restoreOpenFiles(workspaceName, workspace).then(async restoredLeafIds => {
-                      const overriddenLeafIds = await plugin.utils.applyFileOverrides(workspaceName, workspace);
-                      return [...restoredLeafIds, ...overriddenLeafIds];
-                    })
+                // Restore tracked files, then overrides -- sequential (not Promise.all) is
+                // intentional: when the same leaf is both tracked and overridden, the override
+                // must win, which only holds if it's applied after restoreOpenFiles.
+                const restore: Promise<void> = plugin.settings.trackOpenFiles
+                  ? plugin.utils
+                      .restoreOpenFiles(workspaceName, workspace)
+                      .then(() => plugin.utils.applyFileOverrides(workspaceName, workspace))
                   : plugin.utils.applyFileOverrides(workspaceName, workspace);
                 restore
-                  .then(async loadedLeafIds => {
+                  .catch((e: unknown) => {
+                    // Swallow and continue to changeLayout() regardless -- both
+                    // restoreOpenFiles and applyFileOverrides already isolate per-leaf
+                    // errors internally, so a rejection here means something unexpected
+                    // happened, not "nothing was restored."
+                    console.error("failed to restore files:", e);
+                  })
+                  .then(async () => {
                     // A newer switch started while restore was running -- applying this
                     // (now-stale) layout would revert the user's screen back to it.
                     if (generation !== plugin.workspaceLoadGeneration) return;
                     await this.app.workspace.changeLayout(workspace);
-                    // changeLayout() creates the leaves but leaves in the background stay
-                    // "deferred" (a lightweight placeholder) until focused -- force-load the
-                    // ones we just set a file on so they render immediately instead of only
-                    // on click.
-                    for (const leafId of loadedLeafIds) {
-                      const leaf = this.app.workspace.getLeafById(leafId);
-                      if (leaf?.isDeferred) await leaf.loadIfDeferred();
-                    }
-                    // Check again: a newer switch could have started during changeLayout()
-                    // or the deferred-leaf loop above.
+                    if (generation !== plugin.workspaceLoadGeneration) return;
+                    // changeLayout() creates the leaves, but leaves in the background stay
+                    // "deferred" (a lightweight placeholder) until focused. Force-load every
+                    // deferred leaf in the workspace -- not just the ones this plugin wrote a
+                    // file into -- since any background leaf can be left in that state.
+                    const leaves: WorkspaceLeaf[] = [];
+                    this.app.workspace.iterateAllLeaves(leaf => leaves.push(leaf));
+                    await Promise.all(
+                      leaves.filter(leaf => leaf.isDeferred).map(leaf => leaf.loadIfDeferred())
+                    );
                     if (generation === plugin.workspaceLoadGeneration) this.saveData();
                   })
                   .catch((e: unknown) => {
-                    console.error("failed to restore files:", e);
-                    if (generation !== plugin.workspaceLoadGeneration) return;
-                    void this.app.workspace.changeLayout(workspace);
-                    this.saveData();
+                    console.error("failed to apply workspace layout:", e);
                   });
               }
             }
