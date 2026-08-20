@@ -1,5 +1,13 @@
-import type { Moment } from "moment";
-import { WorkspacePluginInstance, App, normalizePath, TFile } from "obsidian";
+import type { Moment, unitOfTime } from "moment";
+import {
+  WorkspacePluginInstance,
+  App,
+  normalizePath,
+  TFile,
+  WorkspaceCustomSettings,
+  WorkspaceLayoutNode,
+  Workspaces,
+} from "obsidian";
 import {
   IGranularity,
   getAllDailyNotes,
@@ -50,10 +58,12 @@ export default class Utils {
     return this.workspacePlugin.workspaces[name];
   }
 
-  getWorkspaceSettings (name: string) {
+  getWorkspaceSettings (name: string): WorkspaceCustomSettings | null {
     const workspace = this.getWorkspace(name);
     if (!workspace) return null;
-    return workspace[this.SETTINGS_ATTR] ? workspace[this.SETTINGS_ATTR] : (workspace[this.SETTINGS_ATTR] = {});
+    return (
+      workspace[this.SETTINGS_ATTR] ? workspace[this.SETTINGS_ATTR] : (workspace[this.SETTINGS_ATTR] = {})
+    ) as WorkspaceCustomSettings;
   }
 
   get activeModeName () {
@@ -73,10 +83,10 @@ export default class Utils {
     return this.activeModeName ? this.activeModeName.replace(/^mode: /i, "") : "Global";
   }
 
-  setWorkspaceSettings (name: string, settings: any): any {
+  setWorkspaceSettings (name: string, settings: WorkspaceCustomSettings): WorkspaceCustomSettings {
     const workspace = this.getWorkspace(name);
     workspace[this.SETTINGS_ATTR] = settings;
-    return workspace[this.SETTINGS_ATTR];
+    return workspace[this.SETTINGS_ATTR] as WorkspaceCustomSettings;
   }
 
   get activeWorkspace () {
@@ -122,7 +132,7 @@ export default class Utils {
     return true;
   }
 
-  setChildId (split: any, leafId: string, fileName: string): boolean {
+  setChildId (split: WorkspaceLayoutNode, leafId: string, fileName: string): boolean {
     if (split.type === "leaf" && split.id === leafId) {
       split.state.state.file = fileName || null;
       return true;
@@ -178,11 +188,12 @@ export default class Utils {
     return result.find(filePath => filePath);
   }
 
-  async applyFileOverrides (workspaceName: string, workspace: any): Promise<void> {
-    let workspaceSettings = this.getWorkspaceSettings(workspaceName);
-    if (workspaceSettings?.fileOverrides) {
+  async applyFileOverrides (workspaceName: string, workspace: Workspaces): Promise<void> {
+    const workspaceSettings = this.getWorkspaceSettings(workspaceName);
+    const fileOverrides = workspaceSettings?.fileOverrides;
+    if (fileOverrides) {
       await Promise.all(
-        Object.entries(workspaceSettings.fileOverrides).map(async ([leafId, fileName]: [string, string]) => {
+        Object.entries(fileOverrides).map(async ([leafId, fileName]: [string, string]) => {
           let parsedFileName = this.renderTemplateString(fileName);
 
           await this.getPeriodicNoteFromPath(parsedFileName);
@@ -194,44 +205,44 @@ export default class Utils {
           const result = this.setChildId(workspace.main, leafId, file?.path);
           if (!result) {
             // clean up any overrides for panes that no longer exist
-            delete workspaceSettings.fileOverrides[leafId];
+            delete fileOverrides[leafId];
           }
         })
       );
     }
   }
 
-  captureOpenFiles(workspace: any): { [key: string]: string } {
+  captureOpenFiles(workspace: Workspaces): { [key: string]: string } {
     const openFiles: { [key: string]: string } = {};
-    
-    function extractFiles(split: any): void {
+
+    function extractFiles(split: WorkspaceLayoutNode): void {
       if (split.type === "leaf") {
         const file = split.state?.state?.file;
         if (file && split.id) {
           openFiles[split.id] = file;
         }
       } else if (split.type === "split" || split.type === "tabs") {
-        split.children?.forEach((child: any) => {
+        split.children?.forEach(child => {
           extractFiles(child);
         });
       }
     }
-    
+
     if (workspace?.main) {
       extractFiles(workspace.main);
     }
-    
+
     return openFiles;
   }
 
-  async restoreOpenFiles(workspaceName: string, workspace: any): Promise<void> {
+  async restoreOpenFiles(workspaceName: string, workspace: Workspaces): Promise<void> {
     const workspaceSettings = this.getWorkspaceSettings(workspaceName);
     const trackedFiles = workspaceSettings?.trackedFiles;
-    
+
     if (!trackedFiles) return;
-    
+
     for (const [leafId, filePath] of Object.entries(trackedFiles)) {
-      const abstractFile = this.app.vault.getAbstractFileByPath(normalizePath(filePath as string));
+      const abstractFile = this.app.vault.getAbstractFileByPath(normalizePath(filePath));
       const file = abstractFile instanceof TFile ? abstractFile : null;
       if (file) {
         // FIle is found, set it
@@ -247,7 +258,7 @@ export default class Utils {
     if (this.isMode(name)) return this.getWorkspaceSettings(name);
   }
 
-  updateFoldState (settings: any) {
+  updateFoldState (settings: WorkspaceCustomSettings) {
     if (settings?.explorerFoldState) this.app.saveLocalStorage("file-explorer-unfold", settings.explorerFoldState);
   }
 
@@ -256,27 +267,40 @@ export default class Utils {
     return isDarkMode ? "obsidian" : "moonstone";
   }
 
-  updateDarkModeFromOS (settings: any) {
+  updateDarkModeFromOS (settings: Record<string, unknown>) {
     settings["theme"] = this.getDarkModeFromOS();
   }
 
-  mergeSidebarLayout (newLayout: any) {
+  mergeSidebarLayout (newLayout: Workspaces) {
     const workspace = this.app.workspace;
     const currentLayout = workspace.getLayout();
-    newLayout["main"] = currentLayout["main"];
+    newLayout.main = currentLayout["main"] as WorkspaceLayoutNode;
     void workspace.changeLayout(newLayout);
   }
 
   // Template string rendering with math. Credit to Liam Cain https://github.com/liamcain/obsidian-daily-notes-interface
   renderTemplateString (text: string) {
-    const templateOptions = (<any>window).app.internalPlugins.getPluginById("templates").instance.options;
+    // Obsidian's core "templates" plugin instance/options aren't part of the public API,
+    // so its shape is undocumented; this.app is the same global app instance the original
+    // `(<any>window).app` reached for.
+    const templatesInstance = this.app.internalPlugins.getPluginById("templates").instance as {
+      options?: { dateFormat?: string; timeFormat?: string };
+    };
+    const templateOptions = templatesInstance.options;
     let dateFormat = (templateOptions && templateOptions.dateFormat) || "YYYY-MM-DD";
     let timeFormat = (templateOptions && templateOptions.timeFormat) || "HH:mm";
     const date = window.moment();
     return (text = text
       .replace(
         /{{\s*(date|time)\s*(([+-]\d+)([yqmwdhs]))?\s*(:.+?)?}}/gi,
-        (_: any, timeOrDate: string, calc: any, timeDelta: string, unit: any, momentFormat: string) => {
+        (
+          _match: string,
+          timeOrDate: string,
+          calc: string | undefined,
+          timeDelta: string,
+          unit: string,
+          momentFormat: string
+        ) => {
           const _format = timeOrDate === "time" ? timeFormat : dateFormat;
           const now = window.moment();
           const currentDate = date.clone().set({
@@ -286,7 +310,7 @@ export default class Utils {
           });
 
           if (calc) {
-            currentDate.add(parseInt(timeDelta, 10), unit);
+            currentDate.add(parseInt(timeDelta, 10), unit as unitOfTime.DurationConstructor);
           }
           const resolvedDate = momentFormat ? currentDate.format(momentFormat.substring(1).trim()) : currentDate.format(_format);
           return resolvedDate;

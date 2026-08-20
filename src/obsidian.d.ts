@@ -110,7 +110,36 @@ declare module "obsidian" {
   }
 
   export interface Workspaces {
-    [x: string]: any; // TODO: improve this typing
+    main?: WorkspaceLayoutNode;
+    left?: WorkspaceLayoutNode;
+    right?: WorkspaceLayoutNode;
+    active?: string;
+    [x: string]: any; // includes the plugin's own settings key (workspaces-plus:settings-v1) and other internal/dynamic keys
+  }
+
+  // The recursive pane/split/tab layout tree Obsidian persists per workspace. Undocumented,
+  // but stable and consistent enough across this plugin's usage (setChildId, captureOpenFiles,
+  // restoreOpenFiles, mergeSidebarLayout) to be worth naming instead of leaving as `any`.
+  export interface WorkspaceLayoutNode {
+    type: string;
+    id?: string;
+    children?: WorkspaceLayoutNode[];
+    state?: { state?: { file?: string | null; [x: string]: unknown }; [x: string]: unknown };
+    [x: string]: unknown;
+  }
+
+  // This plugin's own per-workspace settings blob, stored at workspace[SETTINGS_ATTR].
+  // Unlike Workspaces/WorkspaceLayoutNode this isn't Obsidian internals — it's fully owned by
+  // this plugin, so its shape is exact rather than a best-effort approximation.
+  export interface WorkspaceCustomSettings {
+    mode?: string | null;
+    description?: string;
+    fileOverrides?: Record<string, string>;
+    trackedFiles?: Record<string, string>;
+    explorerFoldState?: unknown;
+    saveSidebar?: boolean;
+    app?: object;
+    [x: string]: unknown;
   }
 }
 /* eslint-enable no-undef -- end of the declare module "obsidian" augmentation block */
