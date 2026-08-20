@@ -1,4 +1,4 @@
-import { FuzzySuggestModal, WorkspacePluginInstance, FuzzyMatch, Notice, Scope } from "obsidian";
+import { FuzzySuggestModal, WorkspacePluginInstance, FuzzyMatch, Notice, Scope, setIcon } from "obsidian";
 import { createPopper, Instance as PopperInstance } from "@popperjs/core";
 import { WorkspacesPlusSettings } from "./settings";
 import { createConfirmationDialog } from "./confirm";
@@ -264,7 +264,7 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     }
     if (childEl.textContent === mode) {
       const activeIcon = wrapperEl.createDiv("active-workspace");
-      activeIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M10 15.172l9.192-9.193 1.415 1.414L10 18l-6.364-6.364 1.414-1.414z"/></svg>`;
+      setIcon(activeIcon, "check");
     }
     wrapperEl.appendChild(childEl);
     parentEl.appendChild(wrapperEl);
@@ -275,7 +275,7 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     const renameIcon = wrapperEl.createDiv("rename-workspace");
     renameIcon.setAttribute("aria-label", "Rename mode");
     renameIcon.setAttribute("aria-label-position", "top");
-    renameIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
+    setIcon(renameIcon, "pencil");
     renameIcon.addEventListener("click", event => this.onRenameClick(event, el));
   }
 
@@ -283,7 +283,7 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     const deleteIcon = wrapperEl.createDiv("delete-workspace");
     deleteIcon.setAttribute("aria-label", "Delete mode");
     deleteIcon.setAttribute("aria-label-position", "top");
-    deleteIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M7 4V2h10v2h5v2h-2v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6H2V4h5zM6 6v14h12V6H6zm3 3h2v8H9V9zm4 0h2v8h-2V9z"/></svg>`;
+    setIcon(deleteIcon, "trash-2");
     deleteIcon.addEventListener("click", event => this.deleteWorkspace());
   }
 

@@ -1,4 +1,4 @@
-import { FuzzySuggestModal, WorkspacePluginInstance, FuzzyMatch, Notice, Scope } from "obsidian";
+import { FuzzySuggestModal, WorkspacePluginInstance, FuzzyMatch, Notice, Scope, setIcon } from "obsidian";
 import { createPopper, Instance as PopperInstance } from "@popperjs/core";
 import { WorkspacesPlusSettings } from "./settings";
 import { createConfirmationDialog } from "./confirm";
@@ -279,7 +279,7 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
     childEl.addClass("workspace-name");
     if (childEl.textContent === this.workspacePlugin.activeWorkspace) {
       const activeIcon = wrapperEl.createDiv("active-workspace");
-      activeIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M10 15.172l9.192-9.193 1.415 1.414L10 18l-6.364-6.364 1.414-1.414z"/></svg>`;
+      setIcon(activeIcon, "check");
     }
     wrapperEl.appendChild(childEl);
     parentEl.appendChild(wrapperEl);
@@ -291,7 +291,7 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
     const renameIcon = wrapperEl.createDiv("rename-workspace");
     renameIcon.setAttribute("aria-label", "Rename workspace");
     renameIcon.setAttribute("aria-label-position", "top");
-    renameIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
+    setIcon(renameIcon, "pencil");
     renameIcon.addEventListener("click", event => this.onRenameClick(event, el));
   }
 
@@ -299,7 +299,7 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
     const deleteIcon = wrapperEl.createDiv("delete-workspace");
     deleteIcon.setAttribute("aria-label", "Delete workspace");
     deleteIcon.setAttribute("aria-label-position", "top");
-    deleteIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M7 4V2h10v2h5v2h-2v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6H2V4h5zM6 6v14h12V6H6zm3 3h2v8H9V9zm4 0h2v8h-2V9z"/></svg>`;
+    setIcon(deleteIcon, "trash-2");
     deleteIcon.addEventListener("click", event => this.deleteWorkspace(workspaceName));
   }
 
@@ -320,10 +320,10 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
     const renameIcon = wrapperEl.createDiv("platform");
     if (platform == "mobile") {
       renameIcon.setAttribute("aria-label", "Mobile workspace");
-      renameIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" style="vertical-align: -0.125em;" width="16" height="16" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24"><rect x="0" y="0" width="24" height="24" fill="none" stroke="none" /><path d="M3 4h17a2 2 0 0 1 2 2v2h-4V6H5v12h9v2H3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2m14 6h6a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1m1 2v7h4v-7h-4z" fill="currentColor"/></svg>`;
+      setIcon(renameIcon, "smartphone");
     } else {
       renameIcon.setAttribute("aria-label", "Desktop workspace");
-      renameIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" style="vertical-align: -0.125em;" width="16" height="16" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24"><rect x="0" y="0" width="24" height="24" fill="none" stroke="none" /><path d="M21 16H3V4h18m0-2H3c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h7v2H8v2h8v-2h-2v-2h7a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z" fill="currentColor"/></svg>`;
+      setIcon(renameIcon, "monitor");
     }
     renameIcon.setAttribute("aria-label-position", "top");
   }
