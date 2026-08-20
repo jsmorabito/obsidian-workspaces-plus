@@ -61,15 +61,12 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
     containerEl.empty();
 
     if (!this.plugin.utils.isNativePluginEnabled) {
-      containerEl.createEl("h2", {
-        text: "Please enable the workspaces plugin under core plugins before using this plugin",
-      });
+      new Setting(containerEl)
+        .setName("Please enable the workspaces plugin under core plugins before using this plugin")
+        .setHeading();
       return;
     }
-    // containerEl.createEl("h2", { text: "Workspaces Plus" });
-    containerEl.createEl("h2", {
-      text: "Quick switcher settings",
-    });
+    new Setting(containerEl).setName("Quick switcher settings").setHeading();
     new Setting(containerEl)
       .setName("Show instructions")
       .setDesc(`Show available keyboard shortcuts at the bottom of the workspace quick switcher`)
@@ -123,9 +120,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
         })
       );
 
-    containerEl.createEl("h2", {
-      text: "Workspace enhancements",
-    });
+    new Setting(containerEl).setName("Workspace enhancements").setHeading();
 
     new Setting(containerEl)
       .setName(
@@ -211,9 +206,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
         })
       );
 
-    containerEl.createEl("h2", {
-      text: "Per workspace settings",
-    });
+    new Setting(containerEl).setName("Per workspace settings").setHeading();
 
     let { workspaces } = this.plugin.workspacePlugin;
     Object.entries(workspaces).forEach(entry => {
@@ -295,11 +288,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       });
     });
 
-    containerEl
-      .createEl("h2", {
-        text: "Per mode settings",
-      })
-      .addClass("requires-workspace-modes");
+    new Setting(containerEl).setName("Per mode settings").setHeading().setClass("requires-workspace-modes");
 
     Object.entries(workspaces).forEach(entry => {
       const [modeName, mode] = entry;
