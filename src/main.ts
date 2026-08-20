@@ -163,12 +163,17 @@ export default class WorkspacesPlus extends Plugin {
 
   setPlatformWorkspace(): void {
     if (!this.isNativePluginEnabled) return;
-    // note: don't call this too early in the init process or setActiveWorkspace will wipe all workspaces
+    // note: don't call this too early in the init process or loadWorkspace will wipe all workspaces
     const _activeWorkspace = this.app.isMobile
       ? this.settings.activeWorkspaceMobile
       : this.settings.activeWorkspaceDesktop;
     if (_activeWorkspace) {
-      this.workspacePlugin.setActiveWorkspace(_activeWorkspace);
+      // loadWorkspace (not setActiveWorkspace) so the saved layout is actually reapplied on
+      // startup, not just the active-workspace label. Obsidian's own setActiveWorkspace only sets
+      // that label; without an actual reload, the status bar can end up naming a workspace whose
+      // layout was never restored, disagreeing with whatever Obsidian's native session-restore
+      // happened to reopen.
+      this.workspacePlugin.loadWorkspace(_activeWorkspace);
     }
   }
 
