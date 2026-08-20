@@ -18,6 +18,12 @@ export default class WorkspacesPlus extends Plugin {
   nativeWorkspaceRibbonItem: HTMLElement;
   isNativePluginEnabled: boolean;
   utils: Utils;
+  // Set when setPlatformWorkspace() triggers a workspace-load at startup, so
+  // enableModesFeature()'s own onWorkspaceLoad() bootstrap call can skip re-running it.
+  // One-shot: consumed (cleared) the first time enableModesFeature() checks it, so a later,
+  // user-triggered call to enableModesFeature() (e.g. toggling modes on mid-session) still
+  // does its own onWorkspaceLoad() call as before.
+  private startupWorkspaceLoadTriggered = false;
 
   async onload() {
     this.debug = false;
@@ -176,6 +182,7 @@ export default class WorkspacesPlus extends Plugin {
       // that label; without an actual reload, the status bar can end up naming a workspace whose
       // layout was never restored, disagreeing with whatever Obsidian's native session-restore
       // happened to reopen.
+      this.startupWorkspaceLoadTriggered = true;
       this.workspacePlugin.loadWorkspace(_activeWorkspace);
     }
   }
@@ -225,8 +232,14 @@ export default class WorkspacesPlus extends Plugin {
         name: "Open mode switcher",
         callback: () => new WorkspacesPlusPluginModeModal(this, this.settings, true).open(),
       });
-      if (this.debug) console.debug("toggle load", this.workspacePlugin.activeWorkspace);
-      this.onWorkspaceLoad(this.workspacePlugin.activeWorkspace);
+      if (this.startupWorkspaceLoadTriggered) {
+        // setPlatformWorkspace() already fired a workspace-load (and therefore
+        // onWorkspaceLoad) synchronously at startup -- avoid running it a second time.
+        this.startupWorkspaceLoadTriggered = false;
+      } else {
+        if (this.debug) console.debug("toggle load", this.workspacePlugin.activeWorkspace);
+        this.onWorkspaceLoad(this.workspacePlugin.activeWorkspace);
+      }
       this.registerEvent(this.app.vault.on("config-changed", this.onConfigChange));
     }
   }
