@@ -186,7 +186,8 @@ export default class Utils {
           let parsedFileName = this.renderTemplateString(fileName);
 
           await this.getPeriodicNoteFromPath(parsedFileName);
-          const file = this.app.vault.getAbstractFileByPath(normalizePath(parsedFileName)) as TFile;
+          const abstractFile = this.app.vault.getAbstractFileByPath(normalizePath(parsedFileName));
+          const file = abstractFile instanceof TFile ? abstractFile : null;
           if (!file) {
             fileName = null;
           }
@@ -230,7 +231,8 @@ export default class Utils {
     if (!trackedFiles) return;
     
     for (const [leafId, filePath] of Object.entries(trackedFiles)) {
-      const file = this.app.vault.getAbstractFileByPath(normalizePath(filePath as string)) as TFile;
+      const abstractFile = this.app.vault.getAbstractFileByPath(normalizePath(filePath as string));
+      const file = abstractFile instanceof TFile ? abstractFile : null;
       if (file) {
         // FIle is found, set it
         this.setChildId(workspace.main, leafId, file.path);

@@ -522,6 +522,7 @@ export default class WorkspacesPlus extends Plugin {
 
   installWorkspaceHooks() {
     // patch the internal workspaces plugin to emit events on save, delete, and load
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- captured for the patched functions below, whose own `this` is rebound to workspacePlugin
     const plugin = this;
     this.register(
       around(this.workspacePlugin, {

@@ -248,7 +248,7 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
   }
 
   wrapSuggestion(childEl: HTMLElement, parentEl: HTMLElement): HTMLElement {
-    const wrapperEl = document.createElement("div");
+    const wrapperEl = createDiv();
     wrapperEl.addClass("workspace-results");
     childEl.dataset.workspaceName = childEl.textContent;
     childEl.removeClass("suggestion-item");
