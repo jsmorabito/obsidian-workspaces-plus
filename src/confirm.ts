@@ -26,9 +26,15 @@ export class ConfirmationModal extends Modal {
         cls: "mod-cta",
         text: cta,
       });
-      btnSumbit.addEventListener("click", async e => {
-        await onAccept();
-        this.close();
+      btnSumbit.addEventListener("click", () => {
+        void (async () => {
+          try {
+            await onAccept();
+            this.close();
+          } catch (e) {
+            console.error("failed to confirm action:", e);
+          }
+        })();
       });
       setTimeout(() => {
         btnSumbit.focus();
