@@ -24,6 +24,11 @@ export default class WorkspacesPlus extends Plugin {
   // user-triggered call to enableModesFeature() (e.g. toggling modes on mid-session) still
   // does its own onWorkspaceLoad() call as before.
   private startupWorkspaceLoadTriggered = false;
+  // Incremented on every non-mode loadWorkspace() invocation. Lets an in-flight restore chain
+  // (restoreOpenFiles/applyFileOverrides -> changeLayout -> deferred-leaf loading -> saveData)
+  // recognize it's been superseded by a newer workspace switch and bail out instead of
+  // re-applying a stale layout or persisting stale data over the newer switch.
+  private workspaceLoadGeneration = 0;
 
   async onload() {
     this.debug = false;
@@ -585,6 +590,9 @@ export default class WorkspacesPlus extends Plugin {
               const workspace = this.workspaces[workspaceName];
               if (workspace) {
                 this.activeWorkspace = workspaceName;
+                // Guards against a rapid second switch superseding this one while its restore
+                // chain is still in flight (see the generation checks below).
+                const generation = ++plugin.workspaceLoadGeneration;
                 // Restore tracked files along with overrides
                 const restore: Promise<string[]> = plugin.settings.trackOpenFiles
                   ? plugin.utils.restoreOpenFiles(workspaceName, workspace).then(async restoredLeafIds => {
@@ -594,6 +602,9 @@ export default class WorkspacesPlus extends Plugin {
                   : plugin.utils.applyFileOverrides(workspaceName, workspace);
                 restore
                   .then(async loadedLeafIds => {
+                    // A newer switch started while restore was running -- applying this
+                    // (now-stale) layout would revert the user's screen back to it.
+                    if (generation !== plugin.workspaceLoadGeneration) return;
                     await this.app.workspace.changeLayout(workspace);
                     // changeLayout() creates the leaves but leaves in the background stay
                     // "deferred" (a lightweight placeholder) until focused -- force-load the
@@ -603,10 +614,13 @@ export default class WorkspacesPlus extends Plugin {
                       const leaf = this.app.workspace.getLeafById(leafId);
                       if (leaf?.isDeferred) await leaf.loadIfDeferred();
                     }
-                    this.saveData();
+                    // Check again: a newer switch could have started during changeLayout()
+                    // or the deferred-leaf loop above.
+                    if (generation === plugin.workspaceLoadGeneration) this.saveData();
                   })
                   .catch((e: unknown) => {
                     console.error("failed to restore files:", e);
+                    if (generation !== plugin.workspaceLoadGeneration) return;
                     void this.app.workspace.changeLayout(workspace);
                     this.saveData();
                   });
