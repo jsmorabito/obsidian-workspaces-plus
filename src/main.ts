@@ -569,26 +569,22 @@ export default class WorkspacesPlus extends Plugin {
               const workspace = this.workspaces[workspaceName];
               if (workspace) {
                 this.activeWorkspace = workspaceName;
-                try {
-                  // Restore tracked files along with overrides
-                  if (plugin.settings.trackOpenFiles) {
-                    plugin.utils.restoreOpenFiles(workspaceName, workspace).then(() => {
-                      plugin.utils.applyFileOverrides(workspaceName, workspace).then(() => {
-                        this.app.workspace.changeLayout(workspace);
-                        this.saveData();
-                      });
-                    });
-                  } else {
-                    plugin.utils.applyFileOverrides(workspaceName, workspace).then(() => {
-                      this.app.workspace.changeLayout(workspace);
-                      this.saveData();
-                    });
-                  }
-                } catch (e) {
-                  console.error("failed to restore files:", e);
-                  this.app.workspace.changeLayout(workspace);
-                  this.saveData();
-                }
+                // Restore tracked files along with overrides
+                const restore = plugin.settings.trackOpenFiles
+                  ? plugin.utils
+                      .restoreOpenFiles(workspaceName, workspace)
+                      .then(() => plugin.utils.applyFileOverrides(workspaceName, workspace))
+                  : plugin.utils.applyFileOverrides(workspaceName, workspace);
+                restore
+                  .then(() => {
+                    this.app.workspace.changeLayout(workspace);
+                    this.saveData();
+                  })
+                  .catch((e: unknown) => {
+                    console.error("failed to restore files:", e);
+                    this.app.workspace.changeLayout(workspace);
+                    this.saveData();
+                  });
               }
             }
             this.app.workspace.trigger("workspace-load", workspaceName);
