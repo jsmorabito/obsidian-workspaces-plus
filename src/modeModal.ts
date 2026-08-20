@@ -30,13 +30,13 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
 
     // temporary styling to force a transparent modal background to address certain themes
     // that apply a background to the modal container instead of the modal-bg
-    this.bgEl.parentElement.setAttribute("style", "background-color: transparent !important");
+    this.bgEl.parentElement.addClass("workspaces-plus-transparent-bg-important");
 
     this.modalEl.classList.add("workspaces-plus-mode-modal");
 
     // handle custom modal positioning when invoked via the status bar
     if (!this.invokedViaHotkey) {
-      this.bgEl.setAttribute("style", "background-color: transparent");
+      this.bgEl.addClass("workspaces-plus-transparent-bg");
       this.modalEl.classList.add("quick-switch");
     }
 
