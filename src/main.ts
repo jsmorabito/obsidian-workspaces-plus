@@ -119,7 +119,7 @@ export default class WorkspacesPlus extends Plugin {
   registerCommands() {
     this.addCommand({
       id: "open-workspaces-plus",
-      name: "Open Workspaces Plus",
+      name: "Open workspace switcher",
       callback: () => new WorkspacesPlusPluginWorkspaceModal(this, this.settings, true).open(),
     });
     this.addCommand({
@@ -222,7 +222,7 @@ export default class WorkspacesPlus extends Plugin {
       this.addStatusBarIndicator("mode");
       this.addCommand({
         id: "open-workspaces-plus-modes",
-        name: "Open Workspaces Plus Modes",
+        name: "Open mode switcher",
         callback: () => new WorkspacesPlusPluginModeModal(this, this.settings, true).open(),
       });
       if (this.debug) console.debug("toggle load", this.workspacePlugin.activeWorkspace);
@@ -285,7 +285,7 @@ export default class WorkspacesPlus extends Plugin {
   setWorkspaceName = debounce(
     () => {
       if (!this.isNativePluginEnabled) {
-        this.changeWorkspaceButton?.setText("Error: The Workspaces core plugin is disabled");
+        this.changeWorkspaceButton?.setText("Error: the workspaces core plugin is disabled");
       } else {
         this.changeWorkspaceButton?.setText(this.utils.activeWorkspace);
       }

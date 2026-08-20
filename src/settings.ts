@@ -62,13 +62,13 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
 
     if (!this.plugin.utils.isNativePluginEnabled) {
       containerEl.createEl("h2", {
-        text: "Please enable the Workspaces plugin under Core Plugins before using this plugin",
+        text: "Please enable the workspaces plugin under core plugins before using this plugin",
       });
       return;
     }
     // containerEl.createEl("h2", { text: "Workspaces Plus" });
     containerEl.createEl("h2", {
-      text: "Quick Switcher Settings",
+      text: "Quick switcher settings",
     });
     new Setting(containerEl)
       .setName("Show instructions")
@@ -91,7 +91,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Show Workspace Sidebar Ribbon Icon")
+      .setName("Show workspace sidebar ribbon icon")
       // .setDesc(``)
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.workspaceSwitcherRibbon).onChange(value => {
@@ -102,7 +102,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Hide the native Workspace Sidebar Ribbon Icon")
+      .setName("Hide the native workspace sidebar ribbon icon")
       // .setDesc(``)
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.replaceNativeRibbon).onChange(value => {
@@ -113,7 +113,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Show Workspace Mode Sidebar Ribbon Icon")
+      .setName("Show workspace mode sidebar ribbon icon")
       // .setDesc(``)
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.modeSwitcherRibbon).onChange(value => {
@@ -124,7 +124,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       );
 
     containerEl.createEl("h2", {
-      text: "Workspace Enhancements",
+      text: "Workspace enhancements",
     });
 
     new Setting(containerEl)
@@ -138,8 +138,8 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
         })
       )
       .setDesc(
-        `Modes are a new type of Workspace that store all of the native Obsidian Editor, Files & Links, 
-        and Appearance settings. Enabling this will add a new mode switcher to the status bar that will allow you
+        `Modes are a new type of workspace that store all of the native Obsidian editor, files & links,
+        and appearance settings. Enabling this will add a new mode switcher to the status bar that will allow you
         to save, apply, rename, and switch between modes.`
       )
       .then(setting => {
@@ -188,7 +188,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       .setName("Respect system dark mode setting")
       .setClass("requires-workspace-modes")
       .setDesc(
-        `Let the OS determine the light/dark mode setting when switching modes. This setting can only be used if Workspace Modes is enabled.`
+        `Let the os determine the light/dark mode setting when switching modes. This setting can only be used if workspace modes is enabled.`
       )
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.systemDarkMode).onChange(value => {
@@ -198,11 +198,11 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Automatically reload Obsidian on Live Preview setting change")
+      .setName("Automatically reload Obsidian on live preview setting change")
       .setClass("requires-workspace-modes")
       .setDesc(
-        `When switching between Modes with different Experimental Live Preview settings, reload Obsidian in order for the setting
-                change to take effect. ⚠️Note: Obsidian will reload automatically after changing workspaces, if needed, without any prompts.`
+        `When switching between modes with different experimental live preview settings, reload Obsidian in order for the setting
+                change to take effect. ⚠️note: Obsidian will reload automatically after changing workspaces, if needed, without any prompts.`
       )
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.reloadLivePreview).onChange(value => {
@@ -212,7 +212,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       );
 
     containerEl.createEl("h2", {
-      text: "Per Workspace Settings",
+      text: "Per workspace settings",
     });
 
     let { workspaces } = this.plugin.workspacePlugin;
@@ -246,7 +246,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
           });
         });
       const subContainerEL = containerEl.createDiv({ cls: "settings-container" });
-      new Setting(subContainerEL).setName("Workspace Description").addText(textfield => {
+      new Setting(subContainerEL).setName("Workspace description").addText(textfield => {
         textfield.inputEl.type = "text";
         textfield.inputEl.parentElement?.addClass("search-input-container");
         textfield.setValue(String(workspaceSettings?.description || ""));
@@ -266,7 +266,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       //     })
       //   );
 
-      new Setting(subContainerEL).setHeading().setName("File Overrides");
+      new Setting(subContainerEL).setHeading().setName("File overrides");
 
       getChildIds(workspace.main).forEach((leaf: any) => {
         let currentFile: string;
@@ -297,7 +297,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
 
     containerEl
       .createEl("h2", {
-        text: "Per Mode Settings",
+        text: "Per mode settings",
       })
       .addClass("requires-workspace-modes");
 
