@@ -49,7 +49,6 @@ export default class Utils {
   }
 
   getWorkspace (name: string) {
-    console.log(this.workspacePlugin.workspaces[name]);
     return this.workspacePlugin.workspaces[name];
   }
 
@@ -190,12 +189,10 @@ export default class Utils {
 
           await this.getPeriodicNoteFromPath(parsedFileName);
           const file = this.app.vault.getAbstractFileByPath(normalizePath(parsedFileName)) as TFile;
-          console.log("parsedFileName", parsedFileName, file);
           if (!file) {
             fileName = null;
           }
           const result = this.setChildId(workspace.main, leafId, file?.path);
-          console.log(workspace);
           if (!result) {
             // clean up any overrides for panes that no longer exist
             delete workspaceSettings.fileOverrides[leafId];

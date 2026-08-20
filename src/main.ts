@@ -225,7 +225,7 @@ export default class WorkspacesPlus extends Plugin {
         name: "Open Workspaces Plus Modes",
         callback: () => new WorkspacesPlusPluginModeModal(this, this.settings, true).open(),
       });
-      if (this.debug) console.log("toggle load", this.workspacePlugin.activeWorkspace);
+      if (this.debug) console.debug("toggle load", this.workspacePlugin.activeWorkspace);
       this.onWorkspaceLoad(this.workspacePlugin.activeWorkspace);
       this.registerEvent(this.app.vault.on("config-changed", this.onConfigChange));
     }
@@ -300,10 +300,10 @@ export default class WorkspacesPlus extends Plugin {
     (workspaceName: string) => {
       // avoid errors if the debounced save happens in the middle of a workspace switch
       if (workspaceName === this.utils.activeWorkspace) {
-        if (this.debug) console.log("layout invoked save: " + workspaceName);
+        if (this.debug) console.debug("layout invoked save: " + workspaceName);
         this.workspacePlugin.saveWorkspace(workspaceName);
       } else {
-        if (this.debug) console.log("skipped saving because the workspace has been changed");
+        if (this.debug) console.debug("skipped saving because the workspace has been changed");
       }
     },
     2000,
@@ -313,15 +313,15 @@ export default class WorkspacesPlus extends Plugin {
   onConfigChange = () => {
     if (!this.settings.workspaceSettings) return;
     if (this.workspaceLoading) {
-      if (this.debug) console.log("skipped save due to recent workspace switch");
+      if (this.debug) console.debug("skipped save due to recent workspace switch");
       return;
     }
     const activeModeName = this.utils.activeModeName;
     if (activeModeName) {
-      if (this.debug) console.log("config invoked mode update: " + activeModeName);
+      if (this.debug) console.debug("config invoked mode update: " + activeModeName);
       this.workspacePlugin.saveWorkspace(activeModeName);
     } else {
-      if (this.debug) console.log("config invoked global update");
+      if (this.debug) console.debug("config invoked global update");
       this.updateGlobalSettings();
     }
   };
@@ -440,10 +440,10 @@ export default class WorkspacesPlus extends Plugin {
       let combinedSettings;
       if (mode) {
         combinedSettings = this.mergeModeSettings(mode);
-        if (this.debug) console.log("loading mode settings", mode, combinedSettings);
+        if (this.debug) console.debug("loading mode settings", mode, combinedSettings);
       } else {
         combinedSettings = this.mergeGlobalSettings();
-        if (this.debug) console.log("loading default settings", combinedSettings);
+        if (this.debug) console.debug("loading default settings", combinedSettings);
         settings && (settings["mode"] = null);
       }
       if (this.settings.systemDarkMode) this.utils.updateDarkModeFromOS(combinedSettings);
@@ -541,7 +541,7 @@ export default class WorkspacesPlus extends Plugin {
             let settings;
             settings = plugin.utils.getWorkspaceSettings(workspaceName);
             const result = old.call(this, workspaceName, ...etc);
-            if (plugin.debug) console.log("workspace saved: " + workspaceName);
+            if (plugin.debug) console.debug("workspace saved: " + workspaceName);
             this.app.workspace.trigger("workspace-save", workspaceName, settings);
             return result;
           };
@@ -585,7 +585,7 @@ export default class WorkspacesPlus extends Plugin {
                     });
                   }
                 } catch (e) {
-                  console.log("failed to restore files:", e);
+                  console.error("failed to restore files:", e);
                   this.app.workspace.changeLayout(workspace);
                   this.saveData();
                 }
