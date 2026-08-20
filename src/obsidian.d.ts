@@ -38,6 +38,10 @@ declare module "obsidian" {
     setTheme(mode: string): void;
     internalPlugins: InternalPlugins;
     viewRegistry: ViewRegistry;
+    keymap: {
+      pushScope(scope: Scope): void;
+      popScope(scope: Scope): void;
+    };
     getTheme(): string;
     changeBaseFontSize(fontSize: number): void;
     changeTheme(theme: string): void;
@@ -95,6 +99,7 @@ declare module "obsidian" {
 
   export interface Workspace extends Events {
     updateOptions(): void;
+    pushClosable(closable: { close(): void }): void;
     on(name: "workspace-load", callback: (workspaceName: string) => void, ctx?: unknown): EventRef;
     on(
       name: "workspace-save",

@@ -1,4 +1,4 @@
-import { FuzzySuggestModal, WorkspacePluginInstance, FuzzyMatch, Notice, Scope, setIcon } from "obsidian";
+import { FuzzySuggestModal, WorkspacePluginInstance, FuzzyMatch, Notice, Scope, setIcon, WorkspaceCustomSettings } from "obsidian";
 import { createPopper, Instance as PopperInstance } from "@popperjs/core";
 import { WorkspacesPlusSettings } from "./settings";
 import { createConfirmationDialog } from "./confirm";
@@ -45,9 +45,10 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     this.setupScope.apply(this);
 
     // setup event listeners
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Function.prototype.bind's TS overloads fall back to `any` for methods with more than a few params; this is a correctly-bound reference to a real prototype method
     this.modalEl.on("input", ".prompt-input", this.onInputChanged.bind(this));
-    this.modalEl.on("click", ".workspace-item", this.onSuggestionClick.bind(this));
-    this.modalEl.on("mousemove", ".workspace-item", this.onSuggestionMouseover.bind(this));
+    this.modalEl.on("click", ".workspace-item", this.onSuggestionClick);
+    this.modalEl.on("mousemove", ".workspace-item", this.onSuggestionMouseover);
 
     // clone the input element as a hacky way to get rid of the obsidian onInput handler
     // const inputElClone = this.inputEl.cloneNode() as HTMLInputElement;
@@ -62,12 +63,14 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     el.createEl("button", {
       cls: "list-item-part",
       text: "Save as new mode",
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Function.prototype.bind's TS overloads fall back to `any` for methods with more than a few params; this is a correctly-bound reference to a real prototype method
     }).addEventListener("click", this.saveAndStay.bind(this));
   }
 
   setupScope(): void {
     this.scope.register([], "Escape", evt => this.onEscape(evt));
     this.scope.register([], "Enter", evt => this.useSelectedItem(evt));
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Function.prototype.bind's TS overloads fall back to `any` for methods with more than a few params; this is a correctly-bound reference to a real prototype method
     this.scope.register(["Shift"], "Delete", this.deleteWorkspace.bind(this));
     this.scope.register(["Ctrl"], "Enter", evt => this.onRenameClick(evt, null));
     this.scope.register(["Shift"], "Enter", evt => this.useSelectedItem(evt));
@@ -121,7 +124,7 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     this.close();
   }
 
-  onSuggestionClick = function (this: WorkspacesPlusPluginModeModal, evt: MouseEvent | KeyboardEvent, itemEl: HTMLElement) {
+  onSuggestionClick = (evt: MouseEvent | KeyboardEvent, itemEl: HTMLElement) => {
     if (itemEl.contentEditable === "true") {
       // allow cursor selection in rename mode by ignoring the click
       evt.stopPropagation();
@@ -133,13 +136,13 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     this.useSelectedItem(evt);
   };
 
-  onSuggestionMouseover = function (this: WorkspacesPlusPluginModeModal, evt: MouseEvent | KeyboardEvent, itemEl: HTMLElement) {
+  onSuggestionMouseover = (evt: MouseEvent | KeyboardEvent, itemEl: HTMLElement) => {
     let item = this.chooser.suggestions.indexOf(itemEl as HTMLElement & { scrollIntoViewIfNeeded: () => void });
     this.chooser.setSelectedItem(item);
   };
 
   open(): void {
-    (<any>this.app).keymap.pushScope(this.scope);
+    this.app.keymap.pushScope(this.scope);
     document.body.appendChild(this.containerEl);
     if (!this.invokedViaHotkey) {
       this.popper = createPopper(document.body.querySelector(".plugin-workspaces-plus.mode-switcher"), this.modalEl, {
@@ -148,7 +151,7 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
       });
     }
     this.onOpen();
-    (this.app.workspace as any).pushClosable(this);
+    this.app.workspace.pushClosable(this);
   }
 
   onOpen(): void {
@@ -160,7 +163,7 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
   }
 
   onClose(): void {
-    (<any>this.app).keymap.popScope(this.scope);
+    this.app.keymap.popScope(this.scope);
     super.onClose();
   }
 
@@ -172,10 +175,10 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     // let settings = this.workspacePlugin.workspaces[this.workspacePlugin.activeWorkspace][SETTINGS_ATTR];
     // let currentMode = settings["mode"] ? settings["mode"] : null;
     for (const workspace of Object.values(this.workspacePlugin.workspaces)) {
-      let settings = workspace[SETTINGS_ATTR];
+      let settings = workspace[SETTINGS_ATTR] as WorkspaceCustomSettings;
       let mode = settings ? settings["mode"] : null;
       if (mode && mode == originalName) {
-        workspace[SETTINGS_ATTR]["mode"] = newName;
+        (workspace[SETTINGS_ATTR] as WorkspaceCustomSettings)["mode"] = newName;
       }
     }
     this.workspacePlugin.workspaces[newName] = this.workspacePlugin.workspaces[originalName];
@@ -191,7 +194,7 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     this.app.workspace.trigger("workspace-rename", newName, originalName);
   }
 
-  useSelectedItem = function (this: WorkspacesPlusPluginModeModal, evt: MouseEvent | KeyboardEvent) {
+  useSelectedItem = (evt: MouseEvent | KeyboardEvent) => {
     const targetEl = evt.composedPath()[0] as HTMLElement;
     if (targetEl.contentEditable === "true") {
       this.handleRename(targetEl);
@@ -233,7 +236,7 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     }
   }
 
-  renderSuggestion(item: FuzzyMatch<any>, el: HTMLElement): void {
+  renderSuggestion(item: FuzzyMatch<string>, el: HTMLElement): void {
     super.renderSuggestion(item, el);
     const resultEl = document.body.querySelector<HTMLElement>("div.workspaces-plus-mode-modal div.prompt-results");
     const existingEl = resultEl.querySelector<HTMLElement>('div[data-workspace-name="' + el.textContent + '"]');
@@ -255,10 +258,9 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     childEl.addClass("workspace-item");
     let mode;
     try {
-      mode = this.workspacePlugin.workspaces[this.workspacePlugin.activeWorkspace][SETTINGS_ATTR]["mode"].replace(
-        /^mode: /i,
-        ""
-      );
+      mode = (
+        this.workspacePlugin.workspaces[this.workspacePlugin.activeWorkspace][SETTINGS_ATTR] as WorkspaceCustomSettings
+      )["mode"].replace(/^mode: /i, "");
     } catch {
       // property chain may not exist yet, fall back to undefined
     }
@@ -287,7 +289,7 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     deleteIcon.addEventListener("click", event => this.deleteWorkspace());
   }
 
-  onRenameClick = function (this: WorkspacesPlusPluginModeModal, evt: MouseEvent | KeyboardEvent, el: HTMLElement): void {
+  onRenameClick = (evt: MouseEvent | KeyboardEvent, el: HTMLElement): void => {
     evt.stopPropagation();
     if (!el) el = this.chooser.suggestions[this.chooser.selectedItem];
     el.parentElement.parentElement.addClass("renaming");
@@ -318,10 +320,10 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     this.chooser.setSelectedItem(currentSelection - 1, true);
     this.plugin.onWorkspaceDelete(workspaceName);
     for (const [workspaceName, workspace] of Object.entries(this.workspacePlugin.workspaces)) {
-      let settings = workspace[SETTINGS_ATTR];
+      let settings = workspace[SETTINGS_ATTR] as WorkspaceCustomSettings;
       let mode = settings ? settings["mode"] : null;
       if (mode && mode == workspaceName) {
-        workspace[SETTINGS_ATTR]["mode"] = null;
+        (workspace[SETTINGS_ATTR] as WorkspaceCustomSettings)["mode"] = null;
       }
     }
   }
@@ -339,7 +341,7 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     return item;
   }
 
-  onChooseItem(item: any, evt: MouseEvent | KeyboardEvent): void {
+  onChooseItem(item: string, evt: MouseEvent | KeyboardEvent): void {
     let modifiers: string;
     if (evt.shiftKey && !evt.altKey) modifiers = "Shift";
     else if (evt.altKey && !evt.shiftKey) modifiers = "Alt";
