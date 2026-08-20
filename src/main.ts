@@ -83,7 +83,8 @@ export default class WorkspacesPlus extends Plugin {
     const fileExists = await this.app.vault.exists(configFileName);
     if (!fileExists) {
       const configData = await this.app.vault.readConfigJson(configType);
-      if (configData) return this.app.vault.writeJson(configFileName, configData, true);
+      if (configData && typeof configData === "object")
+        return this.app.vault.writeJson(configFileName, configData, true);
     }
   }
 

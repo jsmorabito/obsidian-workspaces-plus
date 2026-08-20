@@ -12,10 +12,10 @@ declare module "obsidian" {
   export interface Chooser<T> {
     setSelectedItem(selectedIdx: number, scroll?: boolean): void;
     useSelectedItem(evt: MouseEvent | KeyboardEvent): void;
-    values: { [x: string]: { item: any } };
+    values: { [x: string]: { item: T } };
     selectedItem: number;
     chooser: Chooser<T>;
-    setSuggestions(items: any[]): void;
+    setSuggestions(items: T[]): void;
     containerEl: HTMLElement;
     addMessage(message: string): void;
     updateSuggestions(): void;
@@ -24,14 +24,14 @@ declare module "obsidian" {
   export interface Vault {
     getConfig(config: string): unknown;
     setConfig(config: string, value: unknown): void;
-    readConfigJson(section: string): Promise<any>;
+    readConfigJson(section: string): Promise<unknown>;
     saveConfig(): void;
     exists(path: string): Promise<boolean>;
     writeJson(fileName: string, workspaceMetadata: object, prettyPrint: boolean): Promise<void>;
     config: object;
   }
   export interface Vault extends Events {
-    on(name: "config-changed", callback: () => any): EventRef;
+    on(name: "config-changed", callback: () => void): EventRef;
   }
   export interface App {
     isMobile(): boolean;
@@ -67,7 +67,7 @@ declare module "obsidian" {
   export interface InternalPlugins {
     plugins: Record<string, InstalledPlugin>;
     getPluginById(id: string): InstalledPlugin;
-    on(name: "change", callback: (plugin: InstalledPlugin) => any, ctx?: any): EventRef;
+    on(name: "change", callback: (plugin: InstalledPlugin) => void, ctx?: unknown): EventRef;
   }
 
   export interface ViewRegistry {
@@ -95,13 +95,13 @@ declare module "obsidian" {
 
   export interface Workspace extends Events {
     updateOptions(): void;
-    on(name: "workspace-load", callback: (workspaceName: string) => any, ctx?: any): EventRef;
-    on(name: "workspace-save", callback: (workspaceName: string, modeName: string) => any, ctx?: any): EventRef;
-    on(name: "workspace-delete", callback: (workspaceName: string) => any, ctx?: any): EventRef;
+    on(name: "workspace-load", callback: (workspaceName: string) => void, ctx?: unknown): EventRef;
+    on(name: "workspace-save", callback: (workspaceName: string, modeName: string) => void, ctx?: unknown): EventRef;
+    on(name: "workspace-delete", callback: (workspaceName: string) => void, ctx?: unknown): EventRef;
     on(
       name: "workspace-rename",
-      callback: (newWorkspaceName: string, oldWorkspaceName: string) => any,
-      ctx?: any
+      callback: (newWorkspaceName: string, oldWorkspaceName: string) => void,
+      ctx?: unknown
     ): EventRef;
   }
 
@@ -109,3 +109,4 @@ declare module "obsidian" {
     [x: string]: any; // TODO: improve this typing
   }
 }
+/* eslint-enable no-undef */
