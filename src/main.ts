@@ -50,9 +50,12 @@ export default class WorkspacesPlus extends Plugin {
     this.registerCommands();
 
     this.app.workspace.onLayoutReady(() => {
-      this.setPlatformWorkspace();
-      // store current Obsidian settings into local plugin storage
+      // store current Obsidian settings into local plugin storage -- must run before
+      // setPlatformWorkspace(), which can trigger a synchronous workspace-load that reads
+      // globalSettings back via mergeGlobalSettings(); if globalSettings were still empty at
+      // that point, applySettings() would overwrite (and persist) an empty app.vault.config.
       if (this.settings.workspaceSettings) this.storeGlobalSettings();
+      this.setPlatformWorkspace();
 
       this.backupCoreConfig();
 
