@@ -12,6 +12,62 @@ import {
 } from "obsidian";
 import { FileSuggest } from "./suggesters/fileSuggest";
 
+interface ToggleText {
+  name?: string;
+  desc?: string;
+}
+
+// Shared name/desc text for the plugin's toggle settings, consumed by both display() (the
+// pre-1.13.0 fallback) and getSettingDefinitions() (the 1.13.0+ declarative UI) so the two
+// separately-structured implementations can't silently drift apart on wording. Keyed by the
+// WorkspacesPlusSettings property each toggle controls; "workspaceSettings" is the one
+// exception -- it only holds desc text here since display() renders its name with an extra
+// "beta" flair badge that has no equivalent in the declarative API's string-only name field.
+const TOGGLE_TEXT: Record<string, ToggleText> = {
+  showInstructions: {
+    name: "Show instructions",
+    desc: "Show available keyboard shortcuts at the bottom of the workspace quick switcher",
+  },
+  showDeletePrompt: {
+    name: "Show workspace delete confirmation",
+    desc: "Show a confirmation prompt on workspace deletion",
+  },
+  workspaceSwitcherRibbon: { name: "Show workspace sidebar ribbon icon" },
+  replaceNativeRibbon: { name: "Hide the native workspace sidebar ribbon icon" },
+  modeSwitcherRibbon: { name: "Show workspace mode sidebar ribbon icon" },
+  workspaceSettings: {
+    // name intentionally omitted -- display() renders its own name via createFragment (see
+    // below) to add the "beta" flair badge, and getSettingDefinitions() uses its own literal
+    // "Workspace modes (beta)" string since the declarative API's name field is string-only.
+    desc:
+      "Modes are a new type of workspace that store all of the native Obsidian editor, files & links, " +
+      "and appearance settings. Enabling this will add a new mode switcher to the status bar that will allow you " +
+      "to save, apply, rename, and switch between modes.",
+  },
+  saveOnChange: {
+    name: "Auto save the current workspace on layout change",
+    desc:
+      "This option will auto save your current workspace on any layout change. " +
+      "Leave this disabled if you want full control over when your workspace is saved.",
+  },
+  trackOpenFiles: {
+    name: "Automatically track and restore open files",
+    desc:
+      "When enabled, workspaces will remember which files were open and restore them when you switch back. " +
+      "This preserves your exact layout and open notes across workspace switches.",
+  },
+  systemDarkMode: {
+    name: "Respect system dark mode setting",
+    desc: "Let the os determine the light/dark mode setting when switching modes. This setting can only be used if workspace modes is enabled.",
+  },
+  reloadLivePreview: {
+    name: "Automatically reload Obsidian on live preview setting change",
+    desc:
+      "When switching between modes with different experimental live preview settings, reload Obsidian in order for the setting " +
+      "change to take effect. ⚠️note: Obsidian will reload automatically after changing workspaces, if needed, without any prompts.",
+  },
+};
+
 export class WorkspacesPlusSettings {
   showInstructions: boolean;
   showDeletePrompt: boolean;
@@ -83,8 +139,8 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
     }
     new Setting(containerEl).setName("Quick switcher").setHeading();
     new Setting(containerEl)
-      .setName("Show instructions")
-      .setDesc(`Show available keyboard shortcuts at the bottom of the workspace quick switcher`)
+      .setName(TOGGLE_TEXT.showInstructions.name)
+      .setDesc(TOGGLE_TEXT.showInstructions.desc)
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.showInstructions).onChange(value => {
           this.plugin.settings.showInstructions = value;
@@ -93,8 +149,8 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Show workspace delete confirmation")
-      .setDesc(`Show a confirmation prompt on workspace deletion`)
+      .setName(TOGGLE_TEXT.showDeletePrompt.name)
+      .setDesc(TOGGLE_TEXT.showDeletePrompt.desc)
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.showDeletePrompt).onChange(value => {
           this.plugin.settings.showDeletePrompt = value;
@@ -103,8 +159,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Show workspace sidebar ribbon icon")
-      // .setDesc(``)
+      .setName(TOGGLE_TEXT.workspaceSwitcherRibbon.name)
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.workspaceSwitcherRibbon).onChange(value => {
           this.plugin.settings.workspaceSwitcherRibbon = value;
@@ -114,8 +169,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Hide the native workspace sidebar ribbon icon")
-      // .setDesc(``)
+      .setName(TOGGLE_TEXT.replaceNativeRibbon.name)
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.replaceNativeRibbon).onChange(value => {
           this.plugin.settings.replaceNativeRibbon = value;
@@ -125,8 +179,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Show workspace mode sidebar ribbon icon")
-      // .setDesc(``)
+      .setName(TOGGLE_TEXT.modeSwitcherRibbon.name)
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.modeSwitcherRibbon).onChange(value => {
           this.plugin.settings.modeSwitcherRibbon = value;
@@ -147,11 +200,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
           });
         })
       )
-      .setDesc(
-        `Modes are a new type of workspace that store all of the native Obsidian editor, files & links,
-        and appearance settings. Enabling this will add a new mode switcher to the status bar that will allow you
-        to save, apply, rename, and switch between modes.`
-      )
+      .setDesc(TOGGLE_TEXT.workspaceSettings.desc)
       .then(setting => {
         setting.settingEl.addClass("workspace-modes");
         if (this.plugin.settings.workspaceSettings) setting.settingEl.addClass("is-enabled");
@@ -169,11 +218,8 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
-      .setName("Auto save the current workspace on layout change")
-      .setDesc(
-        `This option will auto save your current workspace on any layout change.
-         Leave this disabled if you want full control over when your workspace is saved.`
-      )
+      .setName(TOGGLE_TEXT.saveOnChange.name)
+      .setDesc(TOGGLE_TEXT.saveOnChange.desc)
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.saveOnChange).onChange(value => {
           this.plugin.settings.saveOnChange = value;
@@ -182,11 +228,8 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Automatically track and restore open files")
-      .setDesc(
-        `When enabled, workspaces will remember which files were open and restore them when you switch back. ` +
-        `This preserves your exact layout and open notes across workspace switches.`
-      )
+      .setName(TOGGLE_TEXT.trackOpenFiles.name)
+      .setDesc(TOGGLE_TEXT.trackOpenFiles.desc)
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.trackOpenFiles).onChange(value => {
           this.plugin.settings.trackOpenFiles = value;
@@ -195,11 +238,9 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Respect system dark mode setting")
+      .setName(TOGGLE_TEXT.systemDarkMode.name)
       .setClass("requires-workspace-modes")
-      .setDesc(
-        `Let the os determine the light/dark mode setting when switching modes. This setting can only be used if workspace modes is enabled.`
-      )
+      .setDesc(TOGGLE_TEXT.systemDarkMode.desc)
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.systemDarkMode).onChange(value => {
           this.plugin.settings.systemDarkMode = value;
@@ -208,12 +249,9 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Automatically reload Obsidian on live preview setting change")
+      .setName(TOGGLE_TEXT.reloadLivePreview.name)
       .setClass("requires-workspace-modes")
-      .setDesc(
-        `When switching between modes with different experimental live preview settings, reload Obsidian in order for the setting
-                change to take effect. ⚠️note: Obsidian will reload automatically after changing workspaces, if needed, without any prompts.`
-      )
+      .setDesc(TOGGLE_TEXT.reloadLivePreview.desc)
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.reloadLivePreview).onChange(value => {
           this.plugin.settings.reloadLivePreview = value;
@@ -257,7 +295,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       new Setting(subContainerEL).setName("Workspace description").addText(textfield => {
         textfield.inputEl.type = "text";
         textfield.inputEl.parentElement?.addClass("search-input-container");
-        textfield.setValue(String(workspaceSettings?.description || ""));
+        textfield.setValue(String(workspaceSettings?.description ?? ""));
         textfield.onChange(value => {
           workspaceSettings.description = value;
           this.plugin.workspacePlugin.saveData();
@@ -377,25 +415,25 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
         heading: "Quick switcher",
         items: [
           {
-            name: "Show instructions",
-            desc: "Show available keyboard shortcuts at the bottom of the workspace quick switcher",
+            name: TOGGLE_TEXT.showInstructions.name,
+            desc: TOGGLE_TEXT.showInstructions.desc,
             control: { type: "toggle", key: "showInstructions" },
           },
           {
-            name: "Show workspace delete confirmation",
-            desc: "Show a confirmation prompt on workspace deletion",
+            name: TOGGLE_TEXT.showDeletePrompt.name,
+            desc: TOGGLE_TEXT.showDeletePrompt.desc,
             control: { type: "toggle", key: "showDeletePrompt" },
           },
           {
-            name: "Show workspace sidebar ribbon icon",
+            name: TOGGLE_TEXT.workspaceSwitcherRibbon.name,
             control: { type: "toggle", key: "workspaceSwitcherRibbon" },
           },
           {
-            name: "Hide the native workspace sidebar ribbon icon",
+            name: TOGGLE_TEXT.replaceNativeRibbon.name,
             control: { type: "toggle", key: "replaceNativeRibbon" },
           },
           {
-            name: "Show workspace mode sidebar ribbon icon",
+            name: TOGGLE_TEXT.modeSwitcherRibbon.name,
             control: { type: "toggle", key: "modeSwitcherRibbon" },
           },
         ],
@@ -405,29 +443,31 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
         heading: "Workspace enhancements",
         items: [
           {
+            // "(beta)" appended here rather than shared -- display() renders the badge as a
+            // separate DOM span instead of plain text; see the comment on TOGGLE_TEXT above.
             name: "Workspace modes (beta)",
-            desc: "Modes are a new type of workspace that store all of the native Obsidian editor, files & links, and appearance settings. Enabling this will add a new mode switcher to the status bar that will allow you to save, apply, rename, and switch between modes.",
+            desc: TOGGLE_TEXT.workspaceSettings.desc,
             control: { type: "toggle", key: "workspaceSettings" },
           },
           {
-            name: "Auto save the current workspace on layout change",
-            desc: "This option will auto save your current workspace on any layout change. Leave this disabled if you want full control over when your workspace is saved.",
+            name: TOGGLE_TEXT.saveOnChange.name,
+            desc: TOGGLE_TEXT.saveOnChange.desc,
             control: { type: "toggle", key: "saveOnChange" },
           },
           {
-            name: "Automatically track and restore open files",
-            desc: "When enabled, workspaces will remember which files were open and restore them when you switch back. This preserves your exact layout and open notes across workspace switches.",
+            name: TOGGLE_TEXT.trackOpenFiles.name,
+            desc: TOGGLE_TEXT.trackOpenFiles.desc,
             control: { type: "toggle", key: "trackOpenFiles" },
           },
           {
-            name: "Respect system dark mode setting",
-            desc: "Let the os determine the light/dark mode setting when switching modes. This setting can only be used if workspace modes is enabled.",
+            name: TOGGLE_TEXT.systemDarkMode.name,
+            desc: TOGGLE_TEXT.systemDarkMode.desc,
             control: { type: "toggle", key: "systemDarkMode" },
             visible: () => this.plugin.settings.workspaceSettings,
           },
           {
-            name: "Automatically reload Obsidian on live preview setting change",
-            desc: "When switching between modes with different experimental live preview settings, reload Obsidian in order for the setting change to take effect. ⚠️note: Obsidian will reload automatically after changing workspaces, if needed, without any prompts.",
+            name: TOGGLE_TEXT.reloadLivePreview.name,
+            desc: TOGGLE_TEXT.reloadLivePreview.desc,
             control: { type: "toggle", key: "reloadLivePreview" },
             visible: () => this.plugin.settings.workspaceSettings,
           },
