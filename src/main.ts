@@ -163,12 +163,17 @@ export default class WorkspacesPlus extends Plugin {
 
   setPlatformWorkspace(): void {
     if (!this.isNativePluginEnabled) return;
-    // note: don't call this too early in the init process or setActiveWorkspace will wipe all workspaces
+    // note: don't call this too early in the init process or loadWorkspace will wipe all workspaces
     const _activeWorkspace = this.app.isMobile
       ? this.settings.activeWorkspaceMobile
       : this.settings.activeWorkspaceDesktop;
     if (_activeWorkspace) {
-      this.workspacePlugin.setActiveWorkspace(_activeWorkspace);
+      // loadWorkspace (not setActiveWorkspace) so the saved layout is actually reapplied on
+      // startup, not just the active-workspace label. Obsidian's own setActiveWorkspace only sets
+      // that label; without an actual reload, the status bar can end up naming a workspace whose
+      // layout was never restored, disagreeing with whatever Obsidian's native session-restore
+      // happened to reopen.
+      this.workspacePlugin.loadWorkspace(_activeWorkspace);
     }
   }
 
@@ -565,14 +570,23 @@ export default class WorkspacesPlus extends Plugin {
               if (workspace) {
                 this.activeWorkspace = workspaceName;
                 // Restore tracked files along with overrides
-                const restore = plugin.settings.trackOpenFiles
-                  ? plugin.utils
-                      .restoreOpenFiles(workspaceName, workspace)
-                      .then(() => plugin.utils.applyFileOverrides(workspaceName, workspace))
+                const restore: Promise<string[]> = plugin.settings.trackOpenFiles
+                  ? plugin.utils.restoreOpenFiles(workspaceName, workspace).then(async restoredLeafIds => {
+                      const overriddenLeafIds = await plugin.utils.applyFileOverrides(workspaceName, workspace);
+                      return [...restoredLeafIds, ...overriddenLeafIds];
+                    })
                   : plugin.utils.applyFileOverrides(workspaceName, workspace);
                 restore
-                  .then(() => {
-                    void this.app.workspace.changeLayout(workspace);
+                  .then(async loadedLeafIds => {
+                    await this.app.workspace.changeLayout(workspace);
+                    // changeLayout() creates the leaves but leaves in the background stay
+                    // "deferred" (a lightweight placeholder) until focused -- force-load the
+                    // ones we just set a file on so they render immediately instead of only
+                    // on click.
+                    for (const leafId of loadedLeafIds) {
+                      const leaf = this.app.workspace.getLeafById(leafId);
+                      if (leaf?.isDeferred) await leaf.loadIfDeferred();
+                    }
                     this.saveData();
                   })
                   .catch((e: unknown) => {

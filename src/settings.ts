@@ -1,5 +1,15 @@
 import WorkspacesPlus from "./main";
-import { App, PluginSettingTab, Setting, setIcon, WorkspaceLayoutNode } from "obsidian";
+import {
+  App,
+  PluginSettingTab,
+  Setting,
+  setIcon,
+  WorkspaceLayoutNode,
+  Workspaces,
+  SettingDefinitionItem,
+  SettingGroupItem,
+  SettingDefinitionPage,
+} from "obsidian";
 import { FileSuggest } from "./suggesters/fileSuggest";
 
 export class WorkspacesPlusSettings {
@@ -334,6 +344,208 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
           })
         );
     });
+  }
+
+  // Declarative settings API (Obsidian 1.13.0+). display() above remains the
+  // fallback for older versions (minAppVersion is 1.8.7) -- Obsidian only
+  // calls display() when this returns an empty array, which is what the
+  // inherited default does on versions that predate this API entirely.
+  // Keep the two in sync when editing either: same settings, same text,
+  // necessarily different structure (imperative DOM vs. declarative tree).
+  getSettingDefinitions(): SettingDefinitionItem[] {
+    if (!this.plugin.utils.isNativePluginEnabled) {
+      return [{ name: "Please enable the workspaces plugin under core plugins before using this plugin" }];
+    }
+
+    const { workspaces } = this.plugin.workspacePlugin;
+    const workspacePages: SettingGroupItem[] = Object.keys(workspaces)
+      .filter(name => !this.plugin.utils.isMode(name))
+      .map(name => this.buildWorkspacePage(name, workspaces[name]));
+    const modePages: SettingGroupItem[] = Object.keys(workspaces)
+      .filter(name => this.plugin.utils.isMode(name))
+      .map(name => this.buildModePage(name));
+
+    return [
+      {
+        type: "group",
+        heading: "Quick switcher",
+        items: [
+          {
+            name: "Show instructions",
+            desc: "Show available keyboard shortcuts at the bottom of the workspace quick switcher",
+            control: { type: "toggle", key: "showInstructions" },
+          },
+          {
+            name: "Show workspace delete confirmation",
+            desc: "Show a confirmation prompt on workspace deletion",
+            control: { type: "toggle", key: "showDeletePrompt" },
+          },
+          {
+            name: "Show workspace sidebar ribbon icon",
+            control: { type: "toggle", key: "workspaceSwitcherRibbon" },
+          },
+          {
+            name: "Hide the native workspace sidebar ribbon icon",
+            control: { type: "toggle", key: "replaceNativeRibbon" },
+          },
+          {
+            name: "Show workspace mode sidebar ribbon icon",
+            control: { type: "toggle", key: "modeSwitcherRibbon" },
+          },
+        ],
+      },
+      {
+        type: "group",
+        heading: "Workspace enhancements",
+        items: [
+          {
+            name: "Workspace modes (beta)",
+            desc: "Modes are a new type of workspace that store all of the native Obsidian editor, files & links, and appearance settings. Enabling this will add a new mode switcher to the status bar that will allow you to save, apply, rename, and switch between modes.",
+            control: { type: "toggle", key: "workspaceSettings" },
+          },
+          {
+            name: "Auto save the current workspace on layout change",
+            desc: "This option will auto save your current workspace on any layout change. Leave this disabled if you want full control over when your workspace is saved.",
+            control: { type: "toggle", key: "saveOnChange" },
+          },
+          {
+            name: "Automatically track and restore open files",
+            desc: "When enabled, workspaces will remember which files were open and restore them when you switch back. This preserves your exact layout and open notes across workspace switches.",
+            control: { type: "toggle", key: "trackOpenFiles" },
+          },
+          {
+            name: "Respect system dark mode setting",
+            desc: "Let the os determine the light/dark mode setting when switching modes. This setting can only be used if workspace modes is enabled.",
+            control: { type: "toggle", key: "systemDarkMode" },
+            visible: () => this.plugin.settings.workspaceSettings,
+          },
+          {
+            name: "Automatically reload Obsidian on live preview setting change",
+            desc: "When switching between modes with different experimental live preview settings, reload Obsidian in order for the setting change to take effect. ⚠️note: Obsidian will reload automatically after changing workspaces, if needed, without any prompts.",
+            control: { type: "toggle", key: "reloadLivePreview" },
+            visible: () => this.plugin.settings.workspaceSettings,
+          },
+        ],
+      },
+      { type: "group", heading: "Per workspace", items: workspacePages },
+      {
+        type: "group",
+        heading: "Per mode",
+        items: modePages,
+        visible: () => this.plugin.settings.workspaceSettings,
+      },
+    ];
+  }
+
+  private buildWorkspacePage(workspaceName: string, workspace: Workspaces): SettingDefinitionPage {
+    const overrides: SettingGroupItem[] = getChildIds(workspace.main).map(leaf => ({
+      name: leaf.id ?? "unknown",
+      control: {
+        type: "file",
+        key: `workspace-override:${encodeURIComponent(workspaceName)}:${encodeURIComponent(leaf.id ?? "")}`,
+        placeholder: leaf.file ?? "",
+      },
+    }));
+
+    return {
+      type: "page",
+      name: workspaceName,
+      items: [
+        {
+          name: "Workspace description",
+          control: { type: "text", key: `workspace-description:${encodeURIComponent(workspaceName)}` },
+        },
+        { type: "group", heading: "File overrides", items: overrides },
+      ],
+    };
+  }
+
+  private buildModePage(modeName: string): SettingDefinitionPage {
+    return {
+      type: "page",
+      name: modeName.replace(/^mode: /i, ""),
+      items: [
+        {
+          name: "Save and load left/right sidebar state",
+          control: { type: "toggle", key: `mode-save-sidebar:${encodeURIComponent(modeName)}` },
+        },
+      ],
+    };
+  }
+
+  getControlValue(key: string): unknown {
+    if (key.startsWith("workspace-description:")) {
+      const workspaceName = decodeURIComponent(key.slice("workspace-description:".length));
+      return this.plugin.utils.getWorkspaceSettings(workspaceName)?.description ?? "";
+    }
+    if (key.startsWith("workspace-override:")) {
+      const { workspaceName, leafId } = this.parseOverrideKey(key);
+      return this.plugin.utils.getWorkspaceSettings(workspaceName)?.fileOverrides?.[leafId] ?? "";
+    }
+    if (key.startsWith("mode-save-sidebar:")) {
+      const modeName = decodeURIComponent(key.slice("mode-save-sidebar:".length));
+      return this.plugin.utils.getModeSettings(modeName)?.saveSidebar ?? false;
+    }
+    // invoked by Obsidian itself when getSettingDefinitions() is in play, i.e. on 1.13.0+; display() is the fallback
+    // for 1.8.7-1.12.x, where these methods are simply never called. See the comment above getSettingDefinitions().
+    return super.getControlValue(key);
+  }
+
+  setControlValue(key: string, value: unknown): void {
+    if (key.startsWith("workspace-description:")) {
+      const workspaceName = decodeURIComponent(key.slice("workspace-description:".length));
+      const settings = this.plugin.utils.getWorkspaceSettings(workspaceName);
+      if (settings) settings.description = value as string;
+      this.plugin.workspacePlugin.saveData();
+      return;
+    }
+    if (key.startsWith("workspace-override:")) {
+      const { workspaceName, leafId } = this.parseOverrideKey(key);
+      const settings = this.plugin.utils.getWorkspaceSettings(workspaceName);
+      if (settings) {
+        if (!settings.fileOverrides) settings.fileOverrides = {};
+        const overrideFile = value as string;
+        if (overrideFile) settings.fileOverrides[leafId] = overrideFile;
+        else delete settings.fileOverrides[leafId];
+      }
+      this.plugin.workspacePlugin.saveData();
+      return;
+    }
+    if (key.startsWith("mode-save-sidebar:")) {
+      const modeName = decodeURIComponent(key.slice("mode-save-sidebar:".length));
+      const settings = this.plugin.utils.getModeSettings(modeName);
+      if (settings) settings.saveSidebar = value as boolean;
+      this.plugin.workspacePlugin.saveData();
+      return;
+    }
+
+    void super.setControlValue(key, value);
+
+    switch (key) {
+      case "workspaceSwitcherRibbon":
+        this.plugin.toggleWorkspaceRibbonButton();
+        break;
+      case "replaceNativeRibbon":
+        this.plugin.toggleNativeWorkspaceRibbon();
+        break;
+      case "modeSwitcherRibbon":
+        this.plugin.toggleModeRibbonButton();
+        break;
+      case "workspaceSettings":
+        if (value) this.plugin.enableModesFeature();
+        else this.plugin.disableModesFeature();
+        this.update();
+        break;
+    }
+  }
+
+  private parseOverrideKey(key: string): { workspaceName: string; leafId: string } {
+    const rest = key.slice("workspace-override:".length);
+    const sepIndex = rest.indexOf(":");
+    return {
+      workspaceName: decodeURIComponent(rest.slice(0, sepIndex)),
+      leafId: decodeURIComponent(rest.slice(sepIndex + 1)),
+    };
   }
 }
 
