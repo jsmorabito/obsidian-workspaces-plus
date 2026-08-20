@@ -2,7 +2,7 @@ import { App, Modal } from "obsidian";
 
 interface IConfirmationDialogParams {
   cta: string;
-  onAccept: (...args: any[]) => Promise<void>;
+  onAccept: () => Promise<void>;
   text: string;
   title: string;
 }
@@ -26,11 +26,17 @@ export class ConfirmationModal extends Modal {
         cls: "mod-cta",
         text: cta,
       });
-      btnSumbit.addEventListener("click", async e => {
-        await onAccept();
-        this.close();
+      btnSumbit.addEventListener("click", () => {
+        void (async () => {
+          try {
+            await onAccept();
+            this.close();
+          } catch (e) {
+            console.error("failed to confirm action:", e);
+          }
+        })();
       });
-      setTimeout(() => {
+      window.setTimeout(() => {
         btnSumbit.focus();
       }, 50);
     });

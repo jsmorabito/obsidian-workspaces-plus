@@ -3,6 +3,15 @@
   z-index: var(--layer-menu);
 }
 
+/* Workaround for themes that style the modal container instead of .modal-bg */
+.workspaces-plus-transparent-bg-important {
+  background-color: transparent !important;
+}
+
+.workspaces-plus-transparent-bg {
+  background-color: transparent;
+}
+
 :where(.workspaces-plus-modal, .workspaces-plus-mode-modal).quick-switch {
   width: unset;
 }

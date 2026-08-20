@@ -1,13 +1,4 @@
-import {
-  Plugin,
-  WorkspacePluginInstance,
-  setIcon,
-  Notice,
-  debounce,
-  normalizePath,
-  TFile,
-  MarkdownView,
-} from "obsidian";
+import { Plugin, WorkspacePluginInstance, setIcon, Notice, debounce, WorkspaceCustomSettings } from "obsidian";
 import { WorkspacesPlusSettings, WorkspacesPlusSettingsTab, DEFAULT_SETTINGS } from "./settings";
 import { WorkspacesPlusPluginWorkspaceModal } from "./workspaceModal";
 import { WorkspacesPlusPluginModeModal } from "./modeModal";
@@ -65,7 +56,7 @@ export default class WorkspacesPlus extends Plugin {
 
       this.backupCoreConfig();
 
-      setTimeout(() => {
+      window.setTimeout(() => {
         this.registerWorkspaceHotkeys();
         this.setWorkspaceAttribute();
         this.addStatusBarIndicator.apply(this);
@@ -82,9 +73,9 @@ export default class WorkspacesPlus extends Plugin {
   }
 
   backupCoreConfig() {
-    this.backupConfigFile("workspaces");
-    this.backupConfigFile("app");
-    this.backupConfigFile("appearance");
+    void this.backupConfigFile("workspaces");
+    void this.backupConfigFile("app");
+    void this.backupConfigFile("appearance");
   }
 
   async backupConfigFile(configType: string): Promise<void> {
@@ -92,7 +83,8 @@ export default class WorkspacesPlus extends Plugin {
     const fileExists = await this.app.vault.exists(configFileName);
     if (!fileExists) {
       const configData = await this.app.vault.readConfigJson(configType);
-      if (configData) return this.app.vault.writeJson(configFileName, configData, true);
+      if (configData && typeof configData === "object")
+        return this.app.vault.writeJson(configFileName, configData, true);
     }
   }
 
@@ -109,7 +101,7 @@ export default class WorkspacesPlus extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, (await this.loadData()) as Partial<WorkspacesPlusSettings>);
   }
 
   async saveSettings() {
@@ -119,7 +111,7 @@ export default class WorkspacesPlus extends Plugin {
   registerCommands() {
     this.addCommand({
       id: "open-workspaces-plus",
-      name: "Open Workspaces Plus",
+      name: "Open workspace switcher",
       callback: () => new WorkspacesPlusPluginWorkspaceModal(this, this.settings, true).open(),
     });
     this.addCommand({
@@ -222,10 +214,10 @@ export default class WorkspacesPlus extends Plugin {
       this.addStatusBarIndicator("mode");
       this.addCommand({
         id: "open-workspaces-plus-modes",
-        name: "Open Workspaces Plus Modes",
+        name: "Open mode switcher",
         callback: () => new WorkspacesPlusPluginModeModal(this, this.settings, true).open(),
       });
-      if (this.debug) console.log("toggle load", this.workspacePlugin.activeWorkspace);
+      if (this.debug) console.debug("toggle load", this.workspacePlugin.activeWorkspace);
       this.onWorkspaceLoad(this.workspacePlugin.activeWorkspace);
       this.registerEvent(this.app.vault.on("config-changed", this.onConfigChange));
     }
@@ -237,7 +229,7 @@ export default class WorkspacesPlus extends Plugin {
     this.applySettings(combinedSettings);
     this.statusBarMode?.detach();
     this.statusBarMode = null;
-    (this.app as any).commands.removeCommand(`${this.manifest.id}:"open-workspaces-plus-modes"`);
+    this.app.commands.removeCommand(`${this.manifest.id}:"open-workspaces-plus-modes"`);
   }
 
   addStatusBarIndicator(modalType: string = "workspace") {
@@ -285,7 +277,7 @@ export default class WorkspacesPlus extends Plugin {
   setWorkspaceName = debounce(
     () => {
       if (!this.isNativePluginEnabled) {
-        this.changeWorkspaceButton?.setText("Error: The Workspaces core plugin is disabled");
+        this.changeWorkspaceButton?.setText("Error: the workspaces core plugin is disabled");
       } else {
         this.changeWorkspaceButton?.setText(this.utils.activeWorkspace);
       }
@@ -300,10 +292,10 @@ export default class WorkspacesPlus extends Plugin {
     (workspaceName: string) => {
       // avoid errors if the debounced save happens in the middle of a workspace switch
       if (workspaceName === this.utils.activeWorkspace) {
-        if (this.debug) console.log("layout invoked save: " + workspaceName);
+        if (this.debug) console.debug("layout invoked save: " + workspaceName);
         this.workspacePlugin.saveWorkspace(workspaceName);
       } else {
-        if (this.debug) console.log("skipped saving because the workspace has been changed");
+        if (this.debug) console.debug("skipped saving because the workspace has been changed");
       }
     },
     2000,
@@ -313,15 +305,15 @@ export default class WorkspacesPlus extends Plugin {
   onConfigChange = () => {
     if (!this.settings.workspaceSettings) return;
     if (this.workspaceLoading) {
-      if (this.debug) console.log("skipped save due to recent workspace switch");
+      if (this.debug) console.debug("skipped save due to recent workspace switch");
       return;
     }
     const activeModeName = this.utils.activeModeName;
     if (activeModeName) {
-      if (this.debug) console.log("config invoked mode update: " + activeModeName);
+      if (this.debug) console.debug("config invoked mode update: " + activeModeName);
       this.workspacePlugin.saveWorkspace(activeModeName);
     } else {
-      if (this.debug) console.log("config invoked global update");
+      if (this.debug) console.debug("config invoked global update");
       this.updateGlobalSettings();
     }
   };
@@ -347,13 +339,13 @@ export default class WorkspacesPlus extends Plugin {
   onWorkspaceRename = (name: string, oldName: string) => {
     this.setWorkspaceName();
     // remove the old command
-    (this.app as any).commands.removeCommand(`${this.manifest.id}:${oldName}`);
-    const hotkeys = (this.app as any).hotkeyManager.getHotkeys(`${this.manifest.id}:${oldName}`);
+    this.app.commands.removeCommand(`${this.manifest.id}:${oldName}`);
+    const hotkeys = this.app.hotkeyManager.getHotkeys(`${this.manifest.id}:${oldName}`);
     // register the new command
     this.registerWorkspaceHotkeys();
     if (hotkeys) {
       // reassign any hotkeys that were assigned to the old command
-      (this.app as any).hotkeyManager.setHotkeys(this.manifest.id + ":" + name, hotkeys);
+      this.app.hotkeyManager.setHotkeys(this.manifest.id + ":" + name, hotkeys);
     }
     // update any cMenu buttons that were associated to the old command
     this.updateCMenuIcon(name, oldName);
@@ -376,18 +368,18 @@ export default class WorkspacesPlus extends Plugin {
   onWorkspaceDelete = (workspaceName: string) => {
     this.setWorkspaceName();
     const id = this.manifest.id + ":" + workspaceName;
-    (this.app as any).commands.removeCommand(id);
-    const hotkeys = (this.app as any).hotkeyManager.getHotkeys(id);
+    this.app.commands.removeCommand(id);
+    const hotkeys = this.app.hotkeyManager.getHotkeys(id);
     if (hotkeys) {
-      (this.app as any).hotkeyManager.removeHotkeys(this.manifest.id + ":" + workspaceName, hotkeys);
+      this.app.hotkeyManager.removeHotkeys(this.manifest.id + ":" + workspaceName, hotkeys);
     }
   };
 
-  onWorkspaceSave = async (workspaceName: string, customSettings: any) => {
+  onWorkspaceSave = async (workspaceName: string, customSettings: WorkspaceCustomSettings | null) => {
     if (!this.isNativePluginEnabled) return;
     this.setWorkspaceName();
     this.registerWorkspaceHotkeys();
-    
+
     if (!customSettings) {
       customSettings = this.utils.getWorkspaceSettings(workspaceName);
     } else {
@@ -407,7 +399,7 @@ export default class WorkspacesPlus extends Plugin {
       customSettings.app = this.app.vault.config;
     }
     
-    let explorerFoldState = await this.app.loadLocalStorage("file-explorer-unfold");
+    let explorerFoldState: unknown = await this.app.loadLocalStorage("file-explorer-unfold");
     if (explorerFoldState) customSettings.explorerFoldState = explorerFoldState;
     
     this.workspacePlugin.saveData();
@@ -421,11 +413,11 @@ export default class WorkspacesPlus extends Plugin {
     }
   }
 
-  mergeModeSettings(settings: any) {
-    return Object.assign({}, settings["app"]);
+  mergeModeSettings(settings: WorkspaceCustomSettings): Record<string, unknown> {
+    return Object.assign({}, settings["app"]) as Record<string, unknown>;
   }
 
-  mergeGlobalSettings() {
+  mergeGlobalSettings(): Record<string, unknown> {
     return Object.assign({}, this.settings.globalSettings);
   }
 
@@ -440,10 +432,10 @@ export default class WorkspacesPlus extends Plugin {
       let combinedSettings;
       if (mode) {
         combinedSettings = this.mergeModeSettings(mode);
-        if (this.debug) console.log("loading mode settings", mode, combinedSettings);
+        if (this.debug) console.debug("loading mode settings", mode, combinedSettings);
       } else {
         combinedSettings = this.mergeGlobalSettings();
-        if (this.debug) console.log("loading default settings", combinedSettings);
+        if (this.debug) console.debug("loading default settings", combinedSettings);
         settings && (settings["mode"] = null);
       }
       if (this.settings.systemDarkMode) this.utils.updateDarkModeFromOS(combinedSettings);
@@ -452,22 +444,22 @@ export default class WorkspacesPlus extends Plugin {
       this.applySettings(combinedSettings);
     }
     if (settings) this.utils.updateFoldState(settings);
-    this.saveData(this.settings);
+    void this.saveData(this.settings);
   };
 
-  needsReload(settings: any) {
-    return this.settings.reloadLivePreview && settings.livePreview != (this.app.vault.config as any).livePreview;
+  needsReload(settings: Record<string, unknown>) {
+    return this.settings.reloadLivePreview && settings.livePreview != this.app.vault.config.livePreview;
   }
 
   reloadIfNeeded = debounce(() => {
     function sleep(ms: number) {
-      return new Promise(resolve => setTimeout(resolve, ms));
+      return new Promise(resolve => window.setTimeout(resolve, ms));
     }
     // this is currently the only way to tell if CM6 is actually loaded on desktop
-    const isLoaded = (this.app as any).commands.editorCommands["editor:toggle-source"] ? true : false;
-    const isEnabled = (this.app.vault.config as any).livePreview;
+    const isLoaded = this.app.commands.editorCommands["editor:toggle-source"] ? true : false;
+    const isEnabled = this.app.vault.config.livePreview;
     if (isEnabled != isLoaded) {
-      (this.app.workspace as any).saveLayout().then(async () => {
+      void this.app.workspace.saveLayout().then(async () => {
         while (true) {
           await sleep(100);
           if (this.app.workspace.layoutReady) {
@@ -480,19 +472,19 @@ export default class WorkspacesPlus extends Plugin {
     }
   }, 500);
 
-  applySettings(settings: any) {
-    (<any>this.app).disableCssTransition();
+  applySettings(settings: Record<string, unknown>) {
+    this.app.disableCssTransition();
     // this emulates what Obsidian does when loading the core settings
     this.app.vault.config = settings;
     this.app.vault.saveConfig();
     // this.app.workspace.updateOptions();
     this.app.setTheme(settings?.theme as string);
-    this.app.customCss.setTheme(settings?.cssTheme);
+    this.app.customCss.setTheme(settings?.cssTheme as string);
     // this.app.changeBaseFontSize(settings?.baseFontSize as number);
     this.app.customCss.loadData();
     this.app.customCss.applyCss();
-    setTimeout(() => {
-      (<any>this.app).enableCssTransition();
+    window.setTimeout(() => {
+      this.app.enableCssTransition();
     }, 1000);
   }
 
@@ -511,26 +503,27 @@ export default class WorkspacesPlus extends Plugin {
 
   setLoadingStatus(): void {
     this.workspaceLoading = true;
-    setTimeout(() => {
+    window.setTimeout(() => {
       this.workspaceLoading = false;
     }, 2000);
   }
 
   updateGlobalSettings(): void {
     this.settings.globalSettings = Object.assign({}, this.settings.globalSettings, this.app.vault.config);
-    this.saveData(this.settings);
+    void this.saveData(this.settings);
   }
 
   storeGlobalSettings() {
     if (Object.keys(this.settings.globalSettings).length === 0) {
       this.settings.globalSettings = Object.assign({}, this.app.vault.config);
-      this.saveData(this.settings);
+      void this.saveData(this.settings);
     }
     return this.settings.globalSettings;
   }
 
   installWorkspaceHooks() {
     // patch the internal workspaces plugin to emit events on save, delete, and load
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- captured for the patched functions below, whose own `this` is rebound to workspacePlugin
     const plugin = this;
     this.register(
       around(this.workspacePlugin, {
@@ -540,8 +533,9 @@ export default class WorkspacesPlus extends Plugin {
             if (!workspaceName || !plugin.isNativePluginEnabled) return;
             let settings;
             settings = plugin.utils.getWorkspaceSettings(workspaceName);
-            const result = old.call(this, workspaceName, ...etc);
-            if (plugin.debug) console.log("workspace saved: " + workspaceName);
+            // old.call()'s TS typing falls back to `any` for this arity, same as bind() elsewhere in this codebase
+            const result = old.call(this, workspaceName, ...etc) as unknown;
+            if (plugin.debug) console.debug("workspace saved: " + workspaceName);
             this.app.workspace.trigger("workspace-save", workspaceName, settings);
             return result;
           };
@@ -549,7 +543,8 @@ export default class WorkspacesPlus extends Plugin {
         deleteWorkspace(old) {
           return function deleteWorkspace(workspaceName, ...etc) {
             if (!workspaceName || !plugin.isNativePluginEnabled) return;
-            const result = old.call(this, workspaceName, ...etc);
+            // old.call()'s TS typing falls back to `any` for this arity, same as bind() elsewhere in this codebase
+            const result = old.call(this, workspaceName, ...etc) as unknown;
             this.app.workspace.trigger("workspace-delete", workspaceName);
             return result;
           };
@@ -569,26 +564,22 @@ export default class WorkspacesPlus extends Plugin {
               const workspace = this.workspaces[workspaceName];
               if (workspace) {
                 this.activeWorkspace = workspaceName;
-                try {
-                  // Restore tracked files along with overrides
-                  if (plugin.settings.trackOpenFiles) {
-                    plugin.utils.restoreOpenFiles(workspaceName, workspace).then(() => {
-                      plugin.utils.applyFileOverrides(workspaceName, workspace).then(() => {
-                        this.app.workspace.changeLayout(workspace);
-                        this.saveData();
-                      });
-                    });
-                  } else {
-                    plugin.utils.applyFileOverrides(workspaceName, workspace).then(() => {
-                      this.app.workspace.changeLayout(workspace);
-                      this.saveData();
-                    });
-                  }
-                } catch (e) {
-                  console.log("failed to restore files:", e);
-                  this.app.workspace.changeLayout(workspace);
-                  this.saveData();
-                }
+                // Restore tracked files along with overrides
+                const restore = plugin.settings.trackOpenFiles
+                  ? plugin.utils
+                      .restoreOpenFiles(workspaceName, workspace)
+                      .then(() => plugin.utils.applyFileOverrides(workspaceName, workspace))
+                  : plugin.utils.applyFileOverrides(workspaceName, workspace);
+                restore
+                  .then(() => {
+                    void this.app.workspace.changeLayout(workspace);
+                    this.saveData();
+                  })
+                  .catch((e: unknown) => {
+                    console.error("failed to restore files:", e);
+                    void this.app.workspace.changeLayout(workspace);
+                    this.saveData();
+                  });
               }
             }
             this.app.workspace.trigger("workspace-load", workspaceName);
