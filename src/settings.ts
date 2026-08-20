@@ -2,7 +2,6 @@ import WorkspacesPlus from "./main";
 import { App, PluginSettingTab, Setting, setIcon } from "obsidian";
 import { FileSuggest } from "./suggesters/fileSuggest";
 
-const SETTINGS_ATTR = "workspaces-plus:settings-v1";
 export class WorkspacesPlusSettings {
   showInstructions: boolean;
   showDeletePrompt: boolean;
@@ -125,11 +124,11 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName(
         createFragment(function (e) {
-          e.appendText("Workspace Modes"),
-            e.createSpan({
-              cls: "flair mod-pop",
-              text: "beta",
-            });
+          e.appendText("Workspace Modes");
+          e.createSpan({
+            cls: "flair mod-pop",
+            text: "beta",
+          });
         })
       )
       .setDesc(
@@ -291,7 +290,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
     new Setting(containerEl).setName("Per mode settings").setHeading().setClass("requires-workspace-modes");
 
     Object.entries(workspaces).forEach(entry => {
-      const [modeName, mode] = entry;
+      const [modeName] = entry;
       if (!this.plugin.utils.isMode(modeName)) return;
       const modeSettings = this.plugin.utils.getModeSettings(modeName);
 

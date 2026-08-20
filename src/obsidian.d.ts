@@ -1,5 +1,4 @@
 import "obsidian";
-import { Plugin } from "obsidian";
 
 declare module "obsidian" {
   export interface FuzzySuggestModal<T> {

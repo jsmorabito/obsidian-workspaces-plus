@@ -1,5 +1,3 @@
-import { settings } from "cluster";
-// import type moment from "moment";
 import type { Moment } from "moment";
 import { WorkspacePluginInstance, App, normalizePath, TFile } from "obsidian";
 import {

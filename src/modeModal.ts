@@ -1,4 +1,4 @@
-import { App, Modal, FuzzySuggestModal, WorkspacePluginInstance, FuzzyMatch, Notice, Scope } from "obsidian";
+import { FuzzySuggestModal, WorkspacePluginInstance, FuzzyMatch, Notice, Scope } from "obsidian";
 import { createPopper, Instance as PopperInstance } from "@popperjs/core";
 import { WorkspacesPlusSettings } from "./settings";
 import { createConfirmationDialog } from "./confirm";
@@ -129,7 +129,8 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     }
     evt.preventDefault();
     let item = this.chooser.suggestions.indexOf(itemEl);
-    this.chooser.setSelectedItem(item), this.useSelectedItem(evt);
+    this.chooser.setSelectedItem(item);
+    this.useSelectedItem(evt);
   };
 
   onSuggestionMouseover = function (evt: MouseEvent | KeyboardEvent, itemEl: HTMLElement) {
@@ -170,7 +171,7 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     const newName = "Mode: " + targetEl.textContent;
     // let settings = this.workspacePlugin.workspaces[this.workspacePlugin.activeWorkspace][SETTINGS_ATTR];
     // let currentMode = settings["mode"] ? settings["mode"] : null;
-    for (const [workspaceName, workspace] of Object.entries(this.workspacePlugin.workspaces)) {
+    for (const workspace of Object.values(this.workspacePlugin.workspaces)) {
       let settings = workspace[SETTINGS_ATTR];
       let mode = settings ? settings["mode"] : null;
       if (mode && mode == originalName) {
@@ -219,7 +220,7 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
       workspaceName = this.chooser.values[currentSelection].item;
     }
     if (this.settings.showDeletePrompt) {
-      const confirmEl = createConfirmationDialog(this.app, {
+      createConfirmationDialog(this.app, {
         cta: "Delete",
         onAccept: async () => {
           this.doDelete("Mode: " + workspaceName);
@@ -258,7 +259,9 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
         /^mode: /i,
         ""
       );
-    } catch {}
+    } catch {
+      // property chain may not exist yet, fall back to undefined
+    }
     if (childEl.textContent === mode) {
       const activeIcon = wrapperEl.createDiv("active-workspace");
       activeIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M10 15.172l9.192-9.193 1.415 1.414L10 18l-6.364-6.364 1.414-1.414z"/></svg>`;
@@ -341,8 +344,10 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     if (evt.shiftKey && !evt.altKey) modifiers = "Shift";
     else if (evt.altKey && !evt.shiftKey) modifiers = "Alt";
     else modifiers = "";
-    if (modifiers === "Shift") this.saveAndStay(), this.close();
-    else this.loadWorkspace("Mode: " + item);
+    if (modifiers === "Shift") {
+      this.saveAndStay();
+      this.close();
+    } else this.loadWorkspace("Mode: " + item);
   }
 
   setWorkspace(workspaceName: string): void {

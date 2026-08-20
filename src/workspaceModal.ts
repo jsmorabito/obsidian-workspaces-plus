@@ -1,13 +1,4 @@
-import {
-  App,
-  Modal,
-  ButtonComponent,
-  FuzzySuggestModal,
-  WorkspacePluginInstance,
-  FuzzyMatch,
-  Notice,
-  Scope,
-} from "obsidian";
+import { FuzzySuggestModal, WorkspacePluginInstance, FuzzyMatch, Notice, Scope } from "obsidian";
 import { createPopper, Instance as PopperInstance } from "@popperjs/core";
 import { WorkspacesPlusSettings } from "./settings";
 import { createConfirmationDialog } from "./confirm";
@@ -153,7 +144,8 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
     }
     evt.preventDefault();
     let item = this.chooser.suggestions.indexOf(itemEl);
-    this.chooser.setSelectedItem(item), this.useSelectedItem(evt);
+    this.chooser.setSelectedItem(item);
+    this.useSelectedItem(evt);
   };
 
   onSuggestionMouseover = function (evt: MouseEvent | KeyboardEvent, itemEl: HTMLElement) {
@@ -242,7 +234,7 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
       workspaceName = this.chooser.values[currentSelection].item;
     }
     if (this.settings.showDeletePrompt) {
-      const confirmEl = createConfirmationDialog(this.app, {
+      createConfirmationDialog(this.app, {
         cta: "Delete",
         onAccept: async () => {
           this.doDelete(workspaceName);
@@ -269,7 +261,9 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
     let isMobile;
     try {
       isMobile = this.workspacePlugin.workspaces[workspaceName].left.type == "mobile-drawer";
-    } catch {}
+    } catch {
+      // property chain may not exist yet, fall back to undefined
+    }
     this.addDeleteButton(wrapperEl, workspaceName);
     this.addRenameButton(wrapperEl, el);
     this.addPlatformButton(wrapperEl, isMobile ? "mobile" : "desktop");
@@ -313,7 +307,9 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
     let description;
     try {
       description = this.workspacePlugin.workspaces[workspaceName][SETTINGS_ATTR]["description"];
-    } catch {}
+    } catch {
+      // property chain may not exist yet, fall back to undefined
+    }
     if (description) {
       const descEl = wrapperEl.createDiv("workspace-description");
       descEl.textContent = description;
@@ -381,9 +377,14 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
     if (evt.shiftKey && !evt.altKey) modifiers = "Shift";
     else if (evt.altKey && !evt.shiftKey) modifiers = "Alt";
     else modifiers = "";
-    if (modifiers === "Shift") this.saveAndStay(), this.setWorkspace(item), this.close();
-    else if (modifiers === "Alt") this.saveAndSwitch(), this.loadWorkspace(item);
-    else this.loadWorkspace(item);
+    if (modifiers === "Shift") {
+      this.saveAndStay();
+      this.setWorkspace(item);
+      this.close();
+    } else if (modifiers === "Alt") {
+      this.saveAndSwitch();
+      this.loadWorkspace(item);
+    } else this.loadWorkspace(item);
   }
 
   setWorkspace(workspaceName: string): void {

@@ -1,13 +1,4 @@
-import {
-  Plugin,
-  WorkspacePluginInstance,
-  setIcon,
-  Notice,
-  debounce,
-  normalizePath,
-  TFile,
-  MarkdownView,
-} from "obsidian";
+import { Plugin, WorkspacePluginInstance, setIcon, Notice, debounce } from "obsidian";
 import { WorkspacesPlusSettings, WorkspacesPlusSettingsTab, DEFAULT_SETTINGS } from "./settings";
 import { WorkspacesPlusPluginWorkspaceModal } from "./workspaceModal";
 import { WorkspacesPlusPluginModeModal } from "./modeModal";
