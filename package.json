@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "rollup --config rollup.config.js -w",
     "build": "rollup --config rollup.config.js --environment BUILD:production",
+    "test": "node tests/workspaceCycle.test.js",
     "release": "auto shipit"
   },
   "keywords": [],
