@@ -28,7 +28,10 @@ declare module "obsidian" {
     saveConfig(): void;
     exists(path: string): Promise<boolean>;
     writeJson(fileName: string, workspaceMetadata: object, prettyPrint: boolean): Promise<void>;
-    config: object;
+    // Obsidian's internal core-settings blob (theme, livePreview, cssTheme, etc.) -- its exact
+    // shape varies by Obsidian version and isn't part of the public API, so this stays a loose
+    // string-keyed record rather than a precise interface.
+    config: Record<string, unknown>;
   }
   export interface Vault extends Events {
     on(name: "config-changed", callback: () => void): EventRef;
@@ -42,6 +45,17 @@ declare module "obsidian" {
       pushScope(scope: Scope): void;
       popScope(scope: Scope): void;
     };
+    commands: {
+      removeCommand(id: string): void;
+      editorCommands: Record<string, unknown>;
+    };
+    hotkeyManager: {
+      getHotkeys(id: string): unknown;
+      setHotkeys(id: string, hotkeys: unknown): void;
+      removeHotkeys(id: string, hotkeys: unknown): void;
+    };
+    disableCssTransition(): void;
+    enableCssTransition(): void;
     getTheme(): string;
     changeBaseFontSize(fontSize: number): void;
     changeTheme(theme: string): void;
@@ -84,12 +98,18 @@ declare module "obsidian" {
     name: string;
     description: string;
     _loaded: boolean;
+    app: App;
   }
 
   export interface WorkspacePluginInstance extends PluginInstance {
-    deleteWorkspace(workspaceName: string): void;
-    saveWorkspace(workspaceName: string): void;
-    loadWorkspace(workspaceName: string): void;
+    // `this:` typed so around()'s monkey-patch wrappers in main.ts's installWorkspaceHooks get a
+    // real `this` instead of implicit any. The extra ...args and non-void return reflect that
+    // these are being wrapped, not called directly -- old.call(this, ...) forwards whatever was
+    // actually passed, and this plugin's own callers always pass exactly one string arg (see
+    // every saveWorkspace/deleteWorkspace/loadWorkspace call site across the codebase).
+    deleteWorkspace(this: WorkspacePluginInstance, workspaceName: string, ...args: unknown[]): unknown;
+    saveWorkspace(this: WorkspacePluginInstance, workspaceName: string, ...args: unknown[]): unknown;
+    loadWorkspace(this: WorkspacePluginInstance, workspaceName: string, ...args: unknown[]): unknown;
     setActiveWorkspace(workspaceName: string): void;
     plugin: PluginInstance;
     activeWorkspace: string;
@@ -100,10 +120,11 @@ declare module "obsidian" {
   export interface Workspace extends Events {
     updateOptions(): void;
     pushClosable(closable: { close(): void }): void;
+    saveLayout(): Promise<void>;
     on(name: "workspace-load", callback: (workspaceName: string) => void, ctx?: unknown): EventRef;
     on(
       name: "workspace-save",
-      callback: (workspaceName: string, modeName: string) => void | Promise<void>,
+      callback: (workspaceName: string, settings: WorkspaceCustomSettings | null) => void | Promise<void>,
       ctx?: unknown
     ): EventRef;
     on(name: "workspace-delete", callback: (workspaceName: string) => void, ctx?: unknown): EventRef;

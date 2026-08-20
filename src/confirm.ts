@@ -2,7 +2,7 @@ import { App, Modal } from "obsidian";
 
 interface IConfirmationDialogParams {
   cta: string;
-  onAccept: (...args: any[]) => Promise<void>;
+  onAccept: () => Promise<void>;
   text: string;
   title: string;
 }

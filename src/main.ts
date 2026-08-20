@@ -1,4 +1,4 @@
-import { Plugin, WorkspacePluginInstance, setIcon, Notice, debounce } from "obsidian";
+import { Plugin, WorkspacePluginInstance, setIcon, Notice, debounce, WorkspaceCustomSettings } from "obsidian";
 import { WorkspacesPlusSettings, WorkspacesPlusSettingsTab, DEFAULT_SETTINGS } from "./settings";
 import { WorkspacesPlusPluginWorkspaceModal } from "./workspaceModal";
 import { WorkspacesPlusPluginModeModal } from "./modeModal";
@@ -101,7 +101,7 @@ export default class WorkspacesPlus extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, (await this.loadData()) as Partial<WorkspacesPlusSettings>);
   }
 
   async saveSettings() {
@@ -229,7 +229,7 @@ export default class WorkspacesPlus extends Plugin {
     this.applySettings(combinedSettings);
     this.statusBarMode?.detach();
     this.statusBarMode = null;
-    (this.app as any).commands.removeCommand(`${this.manifest.id}:"open-workspaces-plus-modes"`);
+    this.app.commands.removeCommand(`${this.manifest.id}:"open-workspaces-plus-modes"`);
   }
 
   addStatusBarIndicator(modalType: string = "workspace") {
@@ -339,13 +339,13 @@ export default class WorkspacesPlus extends Plugin {
   onWorkspaceRename = (name: string, oldName: string) => {
     this.setWorkspaceName();
     // remove the old command
-    (this.app as any).commands.removeCommand(`${this.manifest.id}:${oldName}`);
-    const hotkeys = (this.app as any).hotkeyManager.getHotkeys(`${this.manifest.id}:${oldName}`);
+    this.app.commands.removeCommand(`${this.manifest.id}:${oldName}`);
+    const hotkeys = this.app.hotkeyManager.getHotkeys(`${this.manifest.id}:${oldName}`);
     // register the new command
     this.registerWorkspaceHotkeys();
     if (hotkeys) {
       // reassign any hotkeys that were assigned to the old command
-      (this.app as any).hotkeyManager.setHotkeys(this.manifest.id + ":" + name, hotkeys);
+      this.app.hotkeyManager.setHotkeys(this.manifest.id + ":" + name, hotkeys);
     }
     // update any cMenu buttons that were associated to the old command
     this.updateCMenuIcon(name, oldName);
@@ -368,18 +368,18 @@ export default class WorkspacesPlus extends Plugin {
   onWorkspaceDelete = (workspaceName: string) => {
     this.setWorkspaceName();
     const id = this.manifest.id + ":" + workspaceName;
-    (this.app as any).commands.removeCommand(id);
-    const hotkeys = (this.app as any).hotkeyManager.getHotkeys(id);
+    this.app.commands.removeCommand(id);
+    const hotkeys = this.app.hotkeyManager.getHotkeys(id);
     if (hotkeys) {
-      (this.app as any).hotkeyManager.removeHotkeys(this.manifest.id + ":" + workspaceName, hotkeys);
+      this.app.hotkeyManager.removeHotkeys(this.manifest.id + ":" + workspaceName, hotkeys);
     }
   };
 
-  onWorkspaceSave = async (workspaceName: string, customSettings: any) => {
+  onWorkspaceSave = async (workspaceName: string, customSettings: WorkspaceCustomSettings | null) => {
     if (!this.isNativePluginEnabled) return;
     this.setWorkspaceName();
     this.registerWorkspaceHotkeys();
-    
+
     if (!customSettings) {
       customSettings = this.utils.getWorkspaceSettings(workspaceName);
     } else {
@@ -399,7 +399,7 @@ export default class WorkspacesPlus extends Plugin {
       customSettings.app = this.app.vault.config;
     }
     
-    let explorerFoldState = await this.app.loadLocalStorage("file-explorer-unfold");
+    let explorerFoldState: unknown = await this.app.loadLocalStorage("file-explorer-unfold");
     if (explorerFoldState) customSettings.explorerFoldState = explorerFoldState;
     
     this.workspacePlugin.saveData();
@@ -413,11 +413,11 @@ export default class WorkspacesPlus extends Plugin {
     }
   }
 
-  mergeModeSettings(settings: any) {
-    return Object.assign({}, settings["app"]);
+  mergeModeSettings(settings: WorkspaceCustomSettings): Record<string, unknown> {
+    return Object.assign({}, settings["app"]) as Record<string, unknown>;
   }
 
-  mergeGlobalSettings() {
+  mergeGlobalSettings(): Record<string, unknown> {
     return Object.assign({}, this.settings.globalSettings);
   }
 
@@ -447,8 +447,8 @@ export default class WorkspacesPlus extends Plugin {
     void this.saveData(this.settings);
   };
 
-  needsReload(settings: any) {
-    return this.settings.reloadLivePreview && settings.livePreview != (this.app.vault.config as any).livePreview;
+  needsReload(settings: Record<string, unknown>) {
+    return this.settings.reloadLivePreview && settings.livePreview != this.app.vault.config.livePreview;
   }
 
   reloadIfNeeded = debounce(() => {
@@ -456,10 +456,10 @@ export default class WorkspacesPlus extends Plugin {
       return new Promise(resolve => window.setTimeout(resolve, ms));
     }
     // this is currently the only way to tell if CM6 is actually loaded on desktop
-    const isLoaded = (this.app as any).commands.editorCommands["editor:toggle-source"] ? true : false;
-    const isEnabled = (this.app.vault.config as any).livePreview;
+    const isLoaded = this.app.commands.editorCommands["editor:toggle-source"] ? true : false;
+    const isEnabled = this.app.vault.config.livePreview;
     if (isEnabled != isLoaded) {
-      (this.app.workspace as any).saveLayout().then(async () => {
+      void this.app.workspace.saveLayout().then(async () => {
         while (true) {
           await sleep(100);
           if (this.app.workspace.layoutReady) {
@@ -472,19 +472,19 @@ export default class WorkspacesPlus extends Plugin {
     }
   }, 500);
 
-  applySettings(settings: any) {
-    (<any>this.app).disableCssTransition();
+  applySettings(settings: Record<string, unknown>) {
+    this.app.disableCssTransition();
     // this emulates what Obsidian does when loading the core settings
     this.app.vault.config = settings;
     this.app.vault.saveConfig();
     // this.app.workspace.updateOptions();
     this.app.setTheme(settings?.theme as string);
-    this.app.customCss.setTheme(settings?.cssTheme);
+    this.app.customCss.setTheme(settings?.cssTheme as string);
     // this.app.changeBaseFontSize(settings?.baseFontSize as number);
     this.app.customCss.loadData();
     this.app.customCss.applyCss();
     window.setTimeout(() => {
-      (<any>this.app).enableCssTransition();
+      this.app.enableCssTransition();
     }, 1000);
   }
 
@@ -533,7 +533,8 @@ export default class WorkspacesPlus extends Plugin {
             if (!workspaceName || !plugin.isNativePluginEnabled) return;
             let settings;
             settings = plugin.utils.getWorkspaceSettings(workspaceName);
-            const result = old.call(this, workspaceName, ...etc);
+            // old.call()'s TS typing falls back to `any` for this arity, same as bind() elsewhere in this codebase
+            const result = old.call(this, workspaceName, ...etc) as unknown;
             if (plugin.debug) console.debug("workspace saved: " + workspaceName);
             this.app.workspace.trigger("workspace-save", workspaceName, settings);
             return result;
@@ -542,7 +543,8 @@ export default class WorkspacesPlus extends Plugin {
         deleteWorkspace(old) {
           return function deleteWorkspace(workspaceName, ...etc) {
             if (!workspaceName || !plugin.isNativePluginEnabled) return;
-            const result = old.call(this, workspaceName, ...etc);
+            // old.call()'s TS typing falls back to `any` for this arity, same as bind() elsewhere in this codebase
+            const result = old.call(this, workspaceName, ...etc) as unknown;
             this.app.workspace.trigger("workspace-delete", workspaceName);
             return result;
           };
@@ -570,12 +572,12 @@ export default class WorkspacesPlus extends Plugin {
                   : plugin.utils.applyFileOverrides(workspaceName, workspace);
                 restore
                   .then(() => {
-                    this.app.workspace.changeLayout(workspace);
+                    void this.app.workspace.changeLayout(workspace);
                     this.saveData();
                   })
                   .catch((e: unknown) => {
                     console.error("failed to restore files:", e);
-                    this.app.workspace.changeLayout(workspace);
+                    void this.app.workspace.changeLayout(workspace);
                     this.saveData();
                   });
               }

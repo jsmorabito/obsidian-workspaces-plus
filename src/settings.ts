@@ -9,7 +9,7 @@ export class WorkspacesPlusSettings {
   saveOnChange: boolean;
   workspaceSettings: boolean;
   systemDarkMode: boolean;
-  globalSettings: object;
+  globalSettings: Record<string, unknown>;
   activeWorkspaceDesktop: string;
   activeWorkspaceMobile: string;
   reloadLivePreview: boolean;
