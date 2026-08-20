@@ -1,16 +1,11 @@
 import WorkspacesPlus from "./main";
-import {
-  App,
-  PluginSettingTab,
-  Setting,
-  setIcon,
-  WorkspaceLayoutNode,
-  Workspaces,
-  SettingDefinitionItem,
-  SettingGroupItem,
-  SettingDefinitionPage,
-} from "obsidian";
+import { App, PluginSettingTab, Setting, setIcon, WorkspaceLayoutNode, SettingDefinitionItem } from "obsidian";
 import { FileSuggest } from "./suggesters/fileSuggest";
+import {
+  getSettingDefinitions as declarativeGetSettingDefinitions,
+  getControlValue as declarativeGetControlValue,
+  setControlValue as declarativeSetControlValue,
+} from "./settingsDeclarative";
 
 interface ToggleText {
   name?: string;
@@ -23,7 +18,7 @@ interface ToggleText {
 // WorkspacesPlusSettings property each toggle controls; "workspaceSettings" is the one
 // exception -- it only holds desc text here since display() renders its name with an extra
 // "beta" flair badge that has no equivalent in the declarative API's string-only name field.
-const TOGGLE_TEXT: Record<string, ToggleText> = {
+export const TOGGLE_TEXT: Record<string, ToggleText> = {
   showInstructions: {
     name: "Show instructions",
     desc: "Show available keyboard shortcuts at the bottom of the workspace quick switcher",
@@ -108,7 +103,7 @@ interface ChildLeafSummary {
   mode?: unknown;
 }
 
-function getChildIds (split: WorkspaceLayoutNode, leafs: ChildLeafSummary[] = []): ChildLeafSummary[] {
+export function getChildIds (split: WorkspaceLayoutNode, leafs: ChildLeafSummary[] = []): ChildLeafSummary[] {
   if (split.type === "leaf") {
     leafs.push({ id: split.id, file: split.state?.state?.file, mode: split.state?.state?.mode });
   } else if (split.type === "split" || split.type === "tabs") {
@@ -390,213 +385,23 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
     });
   }
 
-  // Declarative settings API (Obsidian 1.13.0+). display() above remains the
-  // fallback for older versions (minAppVersion is 1.8.7) -- Obsidian only
-  // calls display() when this returns an empty array, which is what the
-  // inherited default does on versions that predate this API entirely.
-  // Keep the two in sync when editing either: same settings, same text,
-  // necessarily different structure (imperative DOM vs. declarative tree).
+  // Declarative settings API (Obsidian 1.13.0+). display() above remains the fallback for
+  // older versions (minAppVersion is 1.8.7) -- Obsidian only calls display() when
+  // getSettingDefinitions() returns an empty array, which is what the inherited default does
+  // on versions that predate this API entirely. The actual implementation lives in
+  // settingsDeclarative.ts (not here) so eslint.config.mjs's obsidianmd/no-unsupported-api
+  // override can be scoped to just that file instead of this whole one -- these three methods
+  // are the only things in this class that are 1.13.0+-only.
   getSettingDefinitions(): SettingDefinitionItem[] {
-    if (!this.plugin.utils.isNativePluginEnabled) {
-      return [{ name: "Please enable the workspaces plugin under core plugins before using this plugin" }];
-    }
-
-    const { workspaces } = this.plugin.workspacePlugin;
-    const workspacePages: SettingGroupItem[] = Object.keys(workspaces)
-      .filter(name => !this.plugin.utils.isMode(name))
-      .map(name => this.buildWorkspacePage(name, workspaces[name]));
-    const modePages: SettingGroupItem[] = Object.keys(workspaces)
-      .filter(name => this.plugin.utils.isMode(name))
-      .map(name => this.buildModePage(name));
-
-    return [
-      {
-        type: "group",
-        heading: "Quick switcher",
-        items: [
-          {
-            name: TOGGLE_TEXT.showInstructions.name,
-            desc: TOGGLE_TEXT.showInstructions.desc,
-            control: { type: "toggle", key: "showInstructions" },
-          },
-          {
-            name: TOGGLE_TEXT.showDeletePrompt.name,
-            desc: TOGGLE_TEXT.showDeletePrompt.desc,
-            control: { type: "toggle", key: "showDeletePrompt" },
-          },
-          {
-            name: TOGGLE_TEXT.workspaceSwitcherRibbon.name,
-            control: { type: "toggle", key: "workspaceSwitcherRibbon" },
-          },
-          {
-            name: TOGGLE_TEXT.replaceNativeRibbon.name,
-            control: { type: "toggle", key: "replaceNativeRibbon" },
-          },
-          {
-            name: TOGGLE_TEXT.modeSwitcherRibbon.name,
-            control: { type: "toggle", key: "modeSwitcherRibbon" },
-          },
-        ],
-      },
-      {
-        type: "group",
-        heading: "Workspace enhancements",
-        items: [
-          {
-            // "(beta)" appended here rather than shared -- display() renders the badge as a
-            // separate DOM span instead of plain text; see the comment on TOGGLE_TEXT above.
-            name: "Workspace modes (beta)",
-            desc: TOGGLE_TEXT.workspaceSettings.desc,
-            control: { type: "toggle", key: "workspaceSettings" },
-          },
-          {
-            name: TOGGLE_TEXT.saveOnChange.name,
-            desc: TOGGLE_TEXT.saveOnChange.desc,
-            control: { type: "toggle", key: "saveOnChange" },
-          },
-          {
-            name: TOGGLE_TEXT.trackOpenFiles.name,
-            desc: TOGGLE_TEXT.trackOpenFiles.desc,
-            control: { type: "toggle", key: "trackOpenFiles" },
-          },
-          {
-            name: TOGGLE_TEXT.systemDarkMode.name,
-            desc: TOGGLE_TEXT.systemDarkMode.desc,
-            control: { type: "toggle", key: "systemDarkMode" },
-            visible: () => this.plugin.settings.workspaceSettings,
-          },
-          {
-            name: TOGGLE_TEXT.reloadLivePreview.name,
-            desc: TOGGLE_TEXT.reloadLivePreview.desc,
-            control: { type: "toggle", key: "reloadLivePreview" },
-            visible: () => this.plugin.settings.workspaceSettings,
-          },
-        ],
-      },
-      { type: "group", heading: "Per workspace", items: workspacePages },
-      {
-        type: "group",
-        heading: "Per mode",
-        items: modePages,
-        visible: () => this.plugin.settings.workspaceSettings,
-      },
-    ];
-  }
-
-  private buildWorkspacePage(workspaceName: string, workspace: Workspaces): SettingDefinitionPage {
-    // See the matching comment in display() -- leaves without an id can't be targeted by
-    // setChildId, so they're skipped rather than rendered as controls that collide on the
-    // same key.
-    const overrides: SettingGroupItem[] = getChildIds(workspace.main)
-      .filter(leaf => leaf.id)
-      .map(leaf => ({
-        name: leaf.id,
-        control: {
-          type: "file",
-          key: `workspace-override:${encodeURIComponent(workspaceName)}:${encodeURIComponent(leaf.id)}`,
-          placeholder: leaf.file ?? "",
-        },
-      }));
-
-    return {
-      type: "page",
-      name: workspaceName,
-      items: [
-        {
-          name: "Workspace description",
-          control: { type: "text", key: `workspace-description:${encodeURIComponent(workspaceName)}` },
-        },
-        { type: "group", heading: "File overrides", items: overrides },
-      ],
-    };
-  }
-
-  private buildModePage(modeName: string): SettingDefinitionPage {
-    return {
-      type: "page",
-      name: modeName.replace(/^mode: /i, ""),
-      items: [
-        {
-          name: "Save and load left/right sidebar state",
-          control: { type: "toggle", key: `mode-save-sidebar:${encodeURIComponent(modeName)}` },
-        },
-      ],
-    };
+    return declarativeGetSettingDefinitions(this);
   }
 
   getControlValue(key: string): unknown {
-    if (key.startsWith("workspace-description:")) {
-      const workspaceName = decodeURIComponent(key.slice("workspace-description:".length));
-      return this.plugin.utils.getWorkspaceSettings(workspaceName)?.description ?? "";
-    }
-    if (key.startsWith("workspace-override:")) {
-      const { workspaceName, leafId } = this.parseOverrideKey(key);
-      return this.plugin.utils.getWorkspaceSettings(workspaceName)?.fileOverrides?.[leafId] ?? "";
-    }
-    if (key.startsWith("mode-save-sidebar:")) {
-      const modeName = decodeURIComponent(key.slice("mode-save-sidebar:".length));
-      return this.plugin.utils.getModeSettings(modeName)?.saveSidebar ?? false;
-    }
-    // invoked by Obsidian itself when getSettingDefinitions() is in play, i.e. on 1.13.0+; display() is the fallback
-    // for 1.8.7-1.12.x, where these methods are simply never called. See the comment above getSettingDefinitions().
-    return super.getControlValue(key);
+    return declarativeGetControlValue(this, key);
   }
 
   setControlValue(key: string, value: unknown): void {
-    if (key.startsWith("workspace-description:")) {
-      const workspaceName = decodeURIComponent(key.slice("workspace-description:".length));
-      const settings = this.plugin.utils.getWorkspaceSettings(workspaceName);
-      if (settings) settings.description = value as string;
-      this.plugin.workspacePlugin.saveData();
-      return;
-    }
-    if (key.startsWith("workspace-override:")) {
-      const { workspaceName, leafId } = this.parseOverrideKey(key);
-      const settings = this.plugin.utils.getWorkspaceSettings(workspaceName);
-      if (settings) {
-        if (!settings.fileOverrides) settings.fileOverrides = {};
-        const overrideFile = value as string;
-        if (overrideFile) settings.fileOverrides[leafId] = overrideFile;
-        else delete settings.fileOverrides[leafId];
-      }
-      this.plugin.workspacePlugin.saveData();
-      return;
-    }
-    if (key.startsWith("mode-save-sidebar:")) {
-      const modeName = decodeURIComponent(key.slice("mode-save-sidebar:".length));
-      const settings = this.plugin.utils.getModeSettings(modeName);
-      if (settings) settings.saveSidebar = value as boolean;
-      this.plugin.workspacePlugin.saveData();
-      return;
-    }
-
-    void super.setControlValue(key, value);
-
-    switch (key) {
-      case "workspaceSwitcherRibbon":
-        this.plugin.toggleWorkspaceRibbonButton();
-        break;
-      case "replaceNativeRibbon":
-        this.plugin.toggleNativeWorkspaceRibbon();
-        break;
-      case "modeSwitcherRibbon":
-        this.plugin.toggleModeRibbonButton();
-        break;
-      case "workspaceSettings":
-        if (value) this.plugin.enableModesFeature();
-        else this.plugin.disableModesFeature();
-        this.update();
-        break;
-    }
-  }
-
-  private parseOverrideKey(key: string): { workspaceName: string; leafId: string } {
-    const rest = key.slice("workspace-override:".length);
-    const sepIndex = rest.indexOf(":");
-    return {
-      workspaceName: decodeURIComponent(rest.slice(0, sepIndex)),
-      leafId: decodeURIComponent(rest.slice(sepIndex + 1)),
-    };
+    declarativeSetControlValue(this, key, value);
   }
 }
 
