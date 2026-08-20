@@ -19,7 +19,7 @@ declare module "obsidian" {
     containerEl: HTMLElement;
     addMessage(message: string): void;
     updateSuggestions(): void;
-    suggestions: { scrollIntoViewIfNeeded: () => void }[];
+    suggestions: (HTMLElement & { scrollIntoViewIfNeeded: () => void })[];
   }
   export interface Vault {
     getConfig(config: string): unknown;

@@ -121,20 +121,20 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     this.close();
   }
 
-  onSuggestionClick = function (evt: MouseEvent | KeyboardEvent, itemEl: HTMLElement) {
+  onSuggestionClick = function (this: WorkspacesPlusPluginModeModal, evt: MouseEvent | KeyboardEvent, itemEl: HTMLElement) {
     if (itemEl.contentEditable === "true") {
       // allow cursor selection in rename mode by ignoring the click
       evt.stopPropagation();
       return;
     }
     evt.preventDefault();
-    let item = this.chooser.suggestions.indexOf(itemEl);
+    let item = this.chooser.suggestions.indexOf(itemEl as HTMLElement & { scrollIntoViewIfNeeded: () => void });
     this.chooser.setSelectedItem(item);
     this.useSelectedItem(evt);
   };
 
-  onSuggestionMouseover = function (evt: MouseEvent | KeyboardEvent, itemEl: HTMLElement) {
-    let item = this.chooser.suggestions.indexOf(itemEl);
+  onSuggestionMouseover = function (this: WorkspacesPlusPluginModeModal, evt: MouseEvent | KeyboardEvent, itemEl: HTMLElement) {
+    let item = this.chooser.suggestions.indexOf(itemEl as HTMLElement & { scrollIntoViewIfNeeded: () => void });
     this.chooser.setSelectedItem(item);
   };
 
@@ -191,20 +191,20 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     this.app.workspace.trigger("workspace-rename", newName, originalName);
   }
 
-  useSelectedItem = function (evt: MouseEvent | KeyboardEvent) {
+  useSelectedItem = function (this: WorkspacesPlusPluginModeModal, evt: MouseEvent | KeyboardEvent) {
     const targetEl = evt.composedPath()[0] as HTMLElement;
     if (targetEl.contentEditable === "true") {
       this.handleRename(targetEl);
       return;
     }
     let workspaceName = this.inputEl.value ? this.inputEl.value : this.chooser.values[this.chooser.selectedItem].item;
-    if (!this.values && workspaceName && evt.shiftKey) {
+    if (workspaceName && evt.shiftKey) {
       this.saveAndStay();
       this.close();
       return false;
     } else if (!this.chooser.values) return false;
     let item = this.chooser.values ? this.chooser.values[this.chooser.selectedItem] : workspaceName;
-    return void 0 !== item && (this.selectSuggestion(item, evt), true);
+    return void 0 !== item && (this.selectSuggestion(item as unknown as FuzzyMatch<string>, evt), true);
   };
 
   saveAndStay(): void {
@@ -287,7 +287,7 @@ export class WorkspacesPlusPluginModeModal extends FuzzySuggestModal<string> {
     deleteIcon.addEventListener("click", event => this.deleteWorkspace());
   }
 
-  onRenameClick = function (evt: MouseEvent | KeyboardEvent, el: HTMLElement): void {
+  onRenameClick = function (this: WorkspacesPlusPluginModeModal, evt: MouseEvent | KeyboardEvent, el: HTMLElement): void {
     evt.stopPropagation();
     if (!el) el = this.chooser.suggestions[this.chooser.selectedItem];
     el.parentElement.parentElement.addClass("renaming");
