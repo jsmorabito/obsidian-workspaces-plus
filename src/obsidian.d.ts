@@ -96,7 +96,11 @@ declare module "obsidian" {
   export interface Workspace extends Events {
     updateOptions(): void;
     on(name: "workspace-load", callback: (workspaceName: string) => void, ctx?: unknown): EventRef;
-    on(name: "workspace-save", callback: (workspaceName: string, modeName: string) => void, ctx?: unknown): EventRef;
+    on(
+      name: "workspace-save",
+      callback: (workspaceName: string, modeName: string) => void | Promise<void>,
+      ctx?: unknown
+    ): EventRef;
     on(name: "workspace-delete", callback: (workspaceName: string) => void, ctx?: unknown): EventRef;
     on(
       name: "workspace-rename",
@@ -109,4 +113,4 @@ declare module "obsidian" {
     [x: string]: any; // TODO: improve this typing
   }
 }
-/* eslint-enable no-undef */
+/* eslint-enable no-undef -- end of the declare module "obsidian" augmentation block */
