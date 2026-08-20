@@ -21,9 +21,8 @@
     "auto-plugin-obsidian": "^0.1.4",
     "obsidian": "^1.1.1",
     "rollup": "^2.32.1",
-    "rollup-plugin-copy-watch": "^0.0.1",
     "tslib": "^2.2.0",
-    "typescript": "4.3.5"
+    "typescript": "^5.4.5"
   },
   "dependencies": {
     "monkey-around": "^2.2.0",
