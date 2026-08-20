@@ -65,7 +65,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
         .setHeading();
       return;
     }
-    new Setting(containerEl).setName("Quick switcher settings").setHeading();
+    new Setting(containerEl).setName("Quick switcher").setHeading();
     new Setting(containerEl)
       .setName("Show instructions")
       .setDesc(`Show available keyboard shortcuts at the bottom of the workspace quick switcher`)
@@ -205,7 +205,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
         })
       );
 
-    new Setting(containerEl).setName("Per workspace settings").setHeading();
+    new Setting(containerEl).setName("Per workspace").setHeading();
 
     let { workspaces } = this.plugin.workspacePlugin;
     Object.entries(workspaces).forEach(entry => {
@@ -287,7 +287,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       });
     });
 
-    new Setting(containerEl).setName("Per mode settings").setHeading().setClass("requires-workspace-modes");
+    new Setting(containerEl).setName("Per mode").setHeading().setClass("requires-workspace-modes");
 
     Object.entries(workspaces).forEach(entry => {
       const [modeName] = entry;
