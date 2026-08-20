@@ -276,7 +276,13 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
 
       new Setting(subContainerEL).setHeading().setName("File overrides");
 
-      getChildIds(workspace.main).forEach(leaf => {
+      // Leaves without an id can't be targeted by setChildId (it matches on split.id ===
+      // leafId), so an override entry keyed by a missing id could never actually apply --
+      // skip rendering a control for them rather than let several such leaves collide on
+      // the same fileOverrides[""] entry.
+      getChildIds(workspace.main)
+        .filter(leaf => leaf.id)
+        .forEach(leaf => {
         let currentFile: string;
         if (workspaceSettings.fileOverrides && workspaceSettings.fileOverrides[leaf.id]) {
           currentFile = workspaceSettings.fileOverrides[leaf.id];
@@ -284,7 +290,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
           currentFile = null;
         }
         new Setting(subContainerEL)
-          .setName(leaf.id ? leaf.id : "unknown")
+          .setName(leaf.id)
           .setClass("file-override")
           .addSearch(cb => {
             new FileSuggest(this.app, cb.inputEl);
@@ -438,14 +444,19 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
   }
 
   private buildWorkspacePage(workspaceName: string, workspace: Workspaces): SettingDefinitionPage {
-    const overrides: SettingGroupItem[] = getChildIds(workspace.main).map(leaf => ({
-      name: leaf.id ?? "unknown",
-      control: {
-        type: "file",
-        key: `workspace-override:${encodeURIComponent(workspaceName)}:${encodeURIComponent(leaf.id ?? "")}`,
-        placeholder: leaf.file ?? "",
-      },
-    }));
+    // See the matching comment in display() -- leaves without an id can't be targeted by
+    // setChildId, so they're skipped rather than rendered as controls that collide on the
+    // same key.
+    const overrides: SettingGroupItem[] = getChildIds(workspace.main)
+      .filter(leaf => leaf.id)
+      .map(leaf => ({
+        name: leaf.id,
+        control: {
+          type: "file",
+          key: `workspace-override:${encodeURIComponent(workspaceName)}:${encodeURIComponent(leaf.id)}`,
+          placeholder: leaf.file ?? "",
+        },
+      }));
 
     return {
       type: "page",
