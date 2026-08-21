@@ -85,6 +85,11 @@ export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDe
           control: { type: "toggle", key: "reloadLivePreview" },
           visible: () => tab.plugin.settings.workspaceSettings,
         },
+        {
+          name: TOGGLE_TEXT.restoreLayoutOnStartup.name,
+          desc: TOGGLE_TEXT.restoreLayoutOnStartup.desc,
+          control: { type: "toggle", key: "restoreLayoutOnStartup" },
+        },
       ],
     },
     { type: "group", heading: "Per workspace", items: workspacePages },

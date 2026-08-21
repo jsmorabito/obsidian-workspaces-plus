@@ -26,11 +26,11 @@ export default class WorkspacesPlus extends Plugin {
   nativeWorkspaceRibbonItem: HTMLElement;
   isNativePluginEnabled: boolean;
   utils: Utils;
-  // Set when setPlatformWorkspace() triggers a workspace-load at startup, so
-  // enableModesFeature()'s own onWorkspaceLoad() bootstrap call can skip re-running it.
-  // One-shot: consumed (cleared) the first time enableModesFeature() checks it, so a later,
-  // user-triggered call to enableModesFeature() (e.g. toggling modes on mid-session) still
-  // does its own onWorkspaceLoad() call as before.
+  // Set when setPlatformWorkspace() triggers a workspace-load at startup (only happens when
+  // settings.restoreLayoutOnStartup is on), so enableModesFeature()'s own onWorkspaceLoad()
+  // bootstrap call can skip re-running it. One-shot: consumed (cleared) the first time
+  // enableModesFeature() checks it, so a later, user-triggered call to enableModesFeature()
+  // (e.g. toggling modes on mid-session) still does its own onWorkspaceLoad() call as before.
   private startupWorkspaceLoadTriggered = false;
   // Incremented on every non-mode loadWorkspace() invocation. Lets an in-flight restore chain
   // (restoreOpenFiles/applyFileOverrides -> changeLayout -> deferred-leaf loading -> saveData)
@@ -70,9 +70,10 @@ export default class WorkspacesPlus extends Plugin {
 
     this.app.workspace.onLayoutReady(() => {
       // store current Obsidian settings into local plugin storage -- must run before
-      // setPlatformWorkspace(), which can trigger a synchronous workspace-load that reads
-      // globalSettings back via mergeGlobalSettings(); if globalSettings were still empty at
-      // that point, applySettings() would overwrite (and persist) an empty app.vault.config.
+      // setPlatformWorkspace(), which (when settings.restoreLayoutOnStartup is on) can trigger
+      // a synchronous workspace-load that reads globalSettings back via mergeGlobalSettings();
+      // if globalSettings were still empty at that point, applySettings() would overwrite (and
+      // persist) an empty app.vault.config.
       if (this.settings.workspaceSettings) this.storeGlobalSettings();
       this.setPlatformWorkspace();
 
@@ -185,18 +186,26 @@ export default class WorkspacesPlus extends Plugin {
 
   setPlatformWorkspace(): void {
     if (!this.isNativePluginEnabled) return;
-    // note: don't call this too early in the init process or loadWorkspace will wipe all workspaces
+    // note: don't call this too early in the init process or it will wipe all workspaces
     const _activeWorkspace = this.app.isMobile
       ? this.settings.activeWorkspaceMobile
       : this.settings.activeWorkspaceDesktop;
-    if (_activeWorkspace) {
+    if (!_activeWorkspace) return;
+    if (this.settings.restoreLayoutOnStartup) {
       // loadWorkspace (not setActiveWorkspace) so the saved layout is actually reapplied on
-      // startup, not just the active-workspace label. Obsidian's own setActiveWorkspace only sets
-      // that label; without an actual reload, the status bar can end up naming a workspace whose
-      // layout was never restored, disagreeing with whatever Obsidian's native session-restore
-      // happened to reopen.
+      // startup, not just the active-workspace label. Obsidian's own setActiveWorkspace only
+      // sets that label; without an actual reload, the status bar can end up naming a
+      // workspace whose layout was never restored, disagreeing with whatever Obsidian's
+      // native session-restore happened to reopen. Opt-in (see TOGGLE_TEXT.restoreLayoutOnStartup
+      // in settings.ts) because it also means every plugin load -- startup, and toggling the
+      // plugin off/on in Community Plugins -- discards whatever unsaved layout is currently
+      // on screen in favor of that workspace's last-saved copy.
       this.startupWorkspaceLoadTriggered = true;
       this.workspacePlugin.loadWorkspace(_activeWorkspace);
+    } else {
+      // Only update the remembered active-workspace label; leave whatever layout is already
+      // on screen (e.g. Obsidian's own native session-restore) untouched.
+      this.workspacePlugin.setActiveWorkspace(_activeWorkspace);
     }
   }
 

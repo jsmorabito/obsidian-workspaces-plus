@@ -61,6 +61,14 @@ export const TOGGLE_TEXT: Record<string, ToggleText> = {
       "When switching between modes with different experimental live preview settings, reload Obsidian in order for the setting " +
       "change to take effect. ⚠️note: Obsidian will reload automatically after changing workspaces, if needed, without any prompts.",
   },
+  restoreLayoutOnStartup: {
+    name: "Reload workspace layout on startup",
+    desc:
+      "Reapply the last-used workspace's saved layout on every Obsidian launch, and when this plugin is toggled off and on " +
+      "again in Community Plugins, so the workspace switcher always agrees with what's on screen. ⚠️note: this discards any " +
+      "unsaved changes to the current layout in favor of that workspace's last-saved copy. Leave this disabled to let " +
+      "Obsidian's own session restore reopen whatever was on screen, unsaved changes included.",
+  },
 };
 
 export class WorkspacesPlusSettings {
@@ -78,6 +86,7 @@ export class WorkspacesPlusSettings {
   modeSwitcherRibbon: boolean;
   replaceNativeRibbon: boolean;
   trackOpenFiles: boolean;
+  restoreLayoutOnStartup: boolean;
 }
 
 export const DEFAULT_SETTINGS: WorkspacesPlusSettings = {
@@ -95,6 +104,7 @@ export const DEFAULT_SETTINGS: WorkspacesPlusSettings = {
   modeSwitcherRibbon: false,
   replaceNativeRibbon: false,
   trackOpenFiles: true,
+  restoreLayoutOnStartup: false,
 };
 
 interface ChildLeafSummary {
@@ -250,6 +260,16 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.reloadLivePreview).onChange(value => {
           this.plugin.settings.reloadLivePreview = value;
+          void this.plugin.saveData(this.plugin.settings);
+        })
+      );
+
+    new Setting(containerEl)
+      .setName(TOGGLE_TEXT.restoreLayoutOnStartup.name)
+      .setDesc(TOGGLE_TEXT.restoreLayoutOnStartup.desc)
+      .addToggle(toggle =>
+        toggle.setValue(this.plugin.settings.restoreLayoutOnStartup).onChange(value => {
+          this.plugin.settings.restoreLayoutOnStartup = value;
           void this.plugin.saveData(this.plugin.settings);
         })
       );
