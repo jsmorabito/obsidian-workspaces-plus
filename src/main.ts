@@ -491,6 +491,10 @@ export default class WorkspacesPlus extends Plugin {
   };
 
   needsReload(settings: Record<string, unknown>) {
+    // Mobile has no legacy editor -- Live Preview is always the active editor there, the
+    // CM6-loaded probe below (editor:toggle-source) doesn't apply, and a hard
+    // window.location.reload() mid-session is jarring. Never take the reload path on mobile.
+    if (this.app.isMobile) return false;
     return this.settings.reloadLivePreview && settings.livePreview != this.app.vault.config.livePreview;
   }
 
