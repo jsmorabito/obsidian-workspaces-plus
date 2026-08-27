@@ -34,8 +34,9 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
 
     this.modalEl.classList.add("workspaces-plus-modal");
 
-    // handle custom modal positioning when invoked via the status bar
-    if (!this.invokedViaHotkey) {
+    // handle custom modal positioning when invoked via the status bar (desktop only --
+    // the status bar is hidden on mobile, so there is no anchor to position against)
+    if (!this.invokedViaHotkey && !this.app.isMobile) {
       this.bgEl.addClass("workspaces-plus-transparent-bg");
       this.modalEl.classList.add("quick-switch");
     }
@@ -84,6 +85,8 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
   }
 
   buildInstructions(): void {
+    // Touch devices have no modifier-key shortcuts to advertise.
+    if (this.app.isMobile) return;
     if (this.settings.showInstructions || this.invokedViaHotkey) {
       let instructions;
       if (!this.settings.saveOnChange) {
@@ -159,7 +162,7 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
   open(): void {
     this.app.keymap.pushScope(this.scope);
     document.body.appendChild(this.containerEl);
-    if (!this.invokedViaHotkey) {
+    if (!this.invokedViaHotkey && !this.app.isMobile) {
       this.popper = createPopper(document.body.querySelector(".plugin-workspaces-plus"), this.modalEl, {
         placement: "top-start",
         modifiers: [{ name: "offset", options: { offset: [0, 10] } }],

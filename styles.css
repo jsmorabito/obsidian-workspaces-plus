@@ -120,6 +120,45 @@ body.is-mobile .prompt-results:not(.renaming) .workspace-item ~ .platform {
   opacity: 1;
 }
 
+/* Mobile: no hover, so give the always-visible row actions real touch targets
+   and space them apart. Extra right padding on the row/description keeps the
+   workspace name clear of the enlarged icons. */
+body.is-mobile .workspace-item {
+  padding-top: 11px;
+  padding-bottom: 11px;
+  padding-right: 8.5rem;
+}
+
+body.is-mobile .workspace-results .workspace-description {
+  padding-right: 8.5rem;
+}
+
+body.is-mobile .workspace-results .rename-workspace,
+body.is-mobile .workspace-results .delete-workspace,
+body.is-mobile .workspace-results .platform {
+  padding: 7px;
+  margin-top: 0.15em;
+}
+
+body.is-mobile .workspace-results .delete-workspace {
+  right: 0.15em;
+}
+
+body.is-mobile .workspace-results .rename-workspace {
+  right: 2.7em;
+}
+
+body.is-mobile .workspace-results .platform {
+  right: 5.25em;
+}
+
+body.is-mobile .workspace-results .rename-workspace svg,
+body.is-mobile .workspace-results .delete-workspace svg,
+body.is-mobile .workspace-results .platform svg {
+  width: 20px;
+  height: 20px;
+}
+
 .workspace-item {
   display: inline-block;
   width: 100%;

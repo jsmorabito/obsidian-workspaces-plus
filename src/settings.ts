@@ -183,15 +183,17 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
         })
       );
 
-    new Setting(containerEl)
-      .setName(TOGGLE_TEXT.modeSwitcherRibbon.name)
-      .addToggle(toggle =>
-        toggle.setValue(this.plugin.settings.modeSwitcherRibbon).onChange(value => {
-          this.plugin.settings.modeSwitcherRibbon = value;
-          void this.plugin.saveData(this.plugin.settings);
-          this.plugin.toggleModeRibbonButton();
-        })
-      );
+    if (!this.plugin.app.isMobile) {
+      new Setting(containerEl)
+        .setName(TOGGLE_TEXT.modeSwitcherRibbon.name)
+        .addToggle(toggle =>
+          toggle.setValue(this.plugin.settings.modeSwitcherRibbon).onChange(value => {
+            this.plugin.settings.modeSwitcherRibbon = value;
+            void this.plugin.saveData(this.plugin.settings);
+            this.plugin.toggleModeRibbonButton();
+          })
+        );
+    }
 
     new Setting(containerEl).setName("Workspace enhancements").setHeading();
 
@@ -205,12 +207,16 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
           });
         })
       )
-      .setDesc(TOGGLE_TEXT.workspaceSettings.desc)
+      .setDesc(
+        this.plugin.app.isMobile
+          ? "Workspace modes are desktop only -- they snapshot and restore Obsidian's core config, which is shared with mobile and would overwrite mobile-specific settings. Plain workspace switching works normally on mobile."
+          : TOGGLE_TEXT.workspaceSettings.desc
+      )
       .then(setting => {
         setting.settingEl.addClass("workspace-modes");
-        if (this.plugin.settings.workspaceSettings) setting.settingEl.addClass("is-enabled");
+        if (this.plugin.settings.workspaceSettings && !this.plugin.app.isMobile) setting.settingEl.addClass("is-enabled");
         else setting.settingEl.removeClass("is-enabled");
-        setting.addToggle(toggle =>
+        setting.addToggle(toggle => {
           toggle.setValue(this.plugin.settings.workspaceSettings).onChange(value => {
             if (value) setting.settingEl.addClass("is-enabled");
             else setting.settingEl.removeClass("is-enabled");
@@ -218,8 +224,9 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
             void this.plugin.saveData(this.plugin.settings);
             if (value) this.plugin.enableModesFeature();
             else this.plugin.disableModesFeature();
-          })
-        );
+          });
+          if (this.plugin.app.isMobile) toggle.setDisabled(true);
+        });
       });
 
     new Setting(containerEl)

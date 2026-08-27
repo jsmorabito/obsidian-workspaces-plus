@@ -5,7 +5,7 @@
 - Target: Obsidian Community Plugin (TypeScript → bundled JavaScript).
 - Entry point: `src/main.ts` compiled to `main.js` and loaded by Obsidian.
 - Required release artifacts: `main.js`, `manifest.json`, `styles.css`.
-- `isDesktopOnly: true` in `manifest.json` — desktop-only APIs are fine here, but note `manifest-beta.json` currently sets `isDesktopOnly: false`; keep these in sync when changing platform support.
+- `isDesktopOnly: false` in `manifest.json` (and `manifest-beta.json`) — the plugin runs on mobile. Do **not** introduce Node/Electron-only APIs; guard any desktop-only behavior behind `this.app.isMobile`. Keep the flag in sync across both manifests.
 
 ## Environment & tooling
 
@@ -126,7 +126,13 @@ Follow Obsidian's Developer Policies and Plugin Guidelines:
 
 ## Mobile
 
-- `isDesktopOnly: true` in `manifest.json` — this plugin is not expected to run on mobile. If that changes, audit for Node/Electron-only API usage first.
+- `isDesktopOnly: false` — the plugin is expected to run on mobile (phone and tablet).
+- No Node/Electron APIs anywhere in `src/` — keep it that way (`require`, `fs`, `path`, `os`, `child_process`, `electron`, `FileSystemAdapter`).
+- Workspace Modes is desktop-only: it snapshots/restores Obsidian's core `app.json`, which is shared across platforms. Route every runtime Modes branch through the `modesEnabled` getter (`workspaceSettings && !app.isMobile`) rather than adding scattered `app.isMobile` checks — that includes the Live Preview reload path, which only runs inside a `modesEnabled` block.
+- The status bar is hidden by default on mobile. The **Open workspace switcher** command is the always-available entry point; the sidebar ribbon icon is off by default (same as desktop) and can be toggled on in settings.
+- Per-platform active workspace is tracked separately (`activeWorkspaceMobile` / `activeWorkspaceDesktop` in `settings.ts`, switched on `app.isMobile`).
+- Row action buttons in the switcher/mode modals are hover-revealed on desktop; on mobile (no hover) they render always-visible via the `.is-mobile` body class in `styles.css`.
+- Test with the desktop "Emulate mobile" developer toggle first, then on a real device via BRAT.
 
 ## Agent do/don't
 

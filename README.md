@@ -91,6 +91,14 @@ Workspaces can be deleted by either using the trach can icon next to the workspa
   - Example: 1 Journal/{{date:YYYY}}/{{date:YYYY-MM}}/{{date:YYYY-MM-DD}}.md
 - Switch to the workspace and the page will be loaded with the value from the override with the variables replaced.
 
+### Mobile
+
+Workspaces Plus runs on mobile (phone and tablet). A few differences from desktop:
+
+- Obsidian hides the status bar on mobile, so the status-bar workspace indicator isn't shown. Use the **Open workspace switcher** command (assign it to the mobile toolbar or a hotkey), or turn on **Show workspace sidebar ribbon icon** in settings — it's off by default, the same as on desktop.
+- The switcher and picker show their rename / delete / platform actions inline (no hover needed) with larger touch targets.
+- **Workspace Modes is desktop only.** Modes snapshot and restore Obsidian's core configuration, which is shared with mobile, so applying them on a phone or tablet would overwrite mobile-specific settings. Plain workspace switching, renaming, saving, overrides, and file tracking all work normally on mobile.
+
 ## Extra
 
 <details>

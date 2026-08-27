@@ -74,7 +74,7 @@ export default class WorkspacesPlus extends Plugin {
       // a synchronous workspace-load that reads globalSettings back via mergeGlobalSettings();
       // if globalSettings were still empty at that point, applySettings() would overwrite (and
       // persist) an empty app.vault.config.
-      if (this.settings.workspaceSettings) this.storeGlobalSettings();
+      if (this.modesEnabled) this.storeGlobalSettings();
       this.setPlatformWorkspace();
 
       this.backupCoreConfig();
@@ -83,12 +83,12 @@ export default class WorkspacesPlus extends Plugin {
         this.registerWorkspaceHotkeys();
         this.setWorkspaceAttribute();
         this.addStatusBarIndicator.apply(this);
-        if (this.settings.workspaceSettings) this.enableModesFeature();
+        if (this.modesEnabled) this.enableModesFeature();
         if (this.settings.workspaceSwitcherRibbon) {
           this.toggleWorkspaceRibbonButton();
           this.toggleNativeWorkspaceRibbon();
         }
-        if (this.settings.workspaceSettings && this.settings.modeSwitcherRibbon) {
+        if (this.modesEnabled && this.settings.modeSwitcherRibbon) {
           this.toggleModeRibbonButton();
         }
       }, 100);
@@ -112,7 +112,7 @@ export default class WorkspacesPlus extends Plugin {
   }
 
   onunload(): void {
-    if (this.settings.workspaceSettings) {
+    if (this.modesEnabled) {
       let combinedSettings = this.mergeGlobalSettings();
       this.applySettings(combinedSettings);
     }
@@ -176,6 +176,15 @@ export default class WorkspacesPlus extends Plugin {
     this.registerEvent(this.app.workspace.on("resize", this.onLayoutChange));
   }
 
+  // Modes snapshot and restore Obsidian's entire core config (app.json, which is shared
+  // across platforms). applySettings() replaces app.vault.config wholesale, so restoring a
+  // desktop-captured snapshot on mobile would drop mobile-only keys (mobile toolbar, pull
+  // action, etc.) and persist the loss. Until Modes captures/merges config platform-safely,
+  // the feature is desktop-only regardless of the stored toggle.
+  get modesEnabled(): boolean {
+    return this.settings.workspaceSettings && !this.app.isMobile;
+  }
+
   get changeWorkspaceButton() {
     return this.statusBarWorkspace?.querySelector(".status-bar-item-segment.name");
   }
@@ -233,7 +242,7 @@ export default class WorkspacesPlus extends Plugin {
     }
   }
   toggleModeRibbonButton(): void {
-    if (this.settings.workspaceSettings && this.settings.modeSwitcherRibbon) {
+    if (this.modesEnabled && this.settings.modeSwitcherRibbon) {
       if (!this.ribbonIconMode) {
         this.ribbonIconMode = this.addRibbonIcon("gear", "Manage modes", async () =>
           new WorkspacesPlusPluginModeModal(this, this.settings, true).open()
@@ -246,7 +255,7 @@ export default class WorkspacesPlus extends Plugin {
   }
 
   enableModesFeature() {
-    if (this.settings.workspaceSettings) {
+    if (this.modesEnabled) {
       this.storeGlobalSettings();
       this.addStatusBarIndicator("mode");
       this.addCommand({
@@ -267,6 +276,11 @@ export default class WorkspacesPlus extends Plugin {
   }
 
   disableModesFeature() {
+    // Only undo what enableModesFeature() actually set up. It no-ops unless modesEnabled
+    // (so it never runs on mobile), and statusBarMode is the marker it leaves behind.
+    // Without this, toggling the persisted `workspaceSettings` off while the feature was
+    // never active would run applySettings() over an empty globalSettings and wipe app.json.
+    if (!this.statusBarMode) return;
     this.app.vault.off("config-changed", this.onConfigChange);
     let combinedSettings = this.mergeGlobalSettings();
     this.applySettings(combinedSettings);
@@ -324,7 +338,7 @@ export default class WorkspacesPlus extends Plugin {
       } else {
         this.changeWorkspaceButton?.setText(this.utils.activeWorkspace);
       }
-      if (this.settings.workspaceSettings) this.changeModeButton?.setText(this.utils.getActiveModeDisplayName());
+      if (this.modesEnabled) this.changeModeButton?.setText(this.utils.getActiveModeDisplayName());
     },
     100,
     true
@@ -346,7 +360,7 @@ export default class WorkspacesPlus extends Plugin {
   );
 
   onConfigChange = () => {
-    if (!this.settings.workspaceSettings) return;
+    if (!this.modesEnabled) return;
     if (this.workspaceLoading) {
       if (this.debug) console.debug("skipped save due to recent workspace switch");
       return;
@@ -373,7 +387,7 @@ export default class WorkspacesPlus extends Plugin {
   setWorkspaceAttribute() {
     const workspace = this.utils.activeWorkspace;
     document.body.dataset.workspaceName = workspace;
-    if (this.settings.workspaceSettings) {
+    if (this.modesEnabled) {
       const modeName = this.utils.getActiveModeDisplayName();
       if (modeName) document.body.dataset.workspaceMode = modeName;
     }
@@ -438,7 +452,7 @@ export default class WorkspacesPlus extends Plugin {
       }
     }
     
-    if (this.settings.workspaceSettings && this.utils.isMode(workspaceName)) {
+    if (this.modesEnabled && this.utils.isMode(workspaceName)) {
       customSettings.app = this.app.vault.config;
     }
     
@@ -469,7 +483,7 @@ export default class WorkspacesPlus extends Plugin {
     this.setWorkspaceAttribute(); // sets HTML data attribute
     this.updatePlatformWorkspace(name);
     const settings = this.utils.getWorkspaceSettings(name);
-    if (this.settings.workspaceSettings) {
+    if (this.modesEnabled) {
       const modeName = settings?.mode;
       const mode = modeName && this.utils.getModeSettings(modeName);
       let combinedSettings;
@@ -598,7 +612,7 @@ export default class WorkspacesPlus extends Plugin {
             plugin.setLoadingStatus();
             let result;
             
-            if (plugin.settings.workspaceSettings && plugin.utils.isMode(workspaceName)) {
+            if (plugin.modesEnabled && plugin.utils.isMode(workspaceName)) {
               // if the workspace being loaded is a mode, invoke the mode loader
               let modeName = workspaceName;
               workspaceName = plugin.utils.activeWorkspace;

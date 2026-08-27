@@ -6,5 +6,5 @@
   "description": "Quickly switch and manage workspaces",
   "author": "NothingIsLost and Johnny ✨",
   "authorUrl": "https://github.com/nothingislost",
-  "isDesktopOnly": true
+  "isDesktopOnly": false
 }
