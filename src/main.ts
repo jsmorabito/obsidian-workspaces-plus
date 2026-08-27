@@ -124,7 +124,14 @@ export default class WorkspacesPlus extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, (await this.loadData()) as Partial<WorkspacesPlusSettings>);
+    const data = (await this.loadData()) as Partial<WorkspacesPlusSettings> | null;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+    // Mobile hides the status bar by default, so the sidebar ribbon icon is the primary
+    // visible entry point there. Default it on when the user hasn't made an explicit choice;
+    // an existing config that set it to false is left untouched.
+    if (this.app.isMobile && (data == null || data.workspaceSwitcherRibbon === undefined)) {
+      this.settings.workspaceSwitcherRibbon = true;
+    }
   }
 
   async saveSettings() {
