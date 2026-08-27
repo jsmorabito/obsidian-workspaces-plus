@@ -124,14 +124,7 @@ export default class WorkspacesPlus extends Plugin {
   }
 
   async loadSettings() {
-    const data = (await this.loadData()) as Partial<WorkspacesPlusSettings> | null;
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
-    // Mobile hides the status bar by default, so the sidebar ribbon icon is the primary
-    // visible entry point there. Default it on when the user hasn't made an explicit choice;
-    // an existing config that set it to false is left untouched.
-    if (this.app.isMobile && (data == null || data.workspaceSwitcherRibbon === undefined)) {
-      this.settings.workspaceSwitcherRibbon = true;
-    }
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, (await this.loadData()) as Partial<WorkspacesPlusSettings>);
   }
 
   async saveSettings() {
@@ -283,8 +276,11 @@ export default class WorkspacesPlus extends Plugin {
   }
 
   disableModesFeature() {
-    // On mobile the feature never wires anything up (see modesEnabled) -- nothing to tear down.
-    if (this.app.isMobile) return;
+    // Only undo what enableModesFeature() actually set up. It no-ops unless modesEnabled
+    // (so it never runs on mobile), and statusBarMode is the marker it leaves behind.
+    // Without this, toggling the persisted `workspaceSettings` off while the feature was
+    // never active would run applySettings() over an empty globalSettings and wipe app.json.
+    if (!this.statusBarMode) return;
     this.app.vault.off("config-changed", this.onConfigChange);
     let combinedSettings = this.mergeGlobalSettings();
     this.applySettings(combinedSettings);
@@ -509,10 +505,6 @@ export default class WorkspacesPlus extends Plugin {
   };
 
   needsReload(settings: Record<string, unknown>) {
-    // Mobile has no legacy editor -- Live Preview is always the active editor there, the
-    // CM6-loaded probe below (editor:toggle-source) doesn't apply, and a hard
-    // window.location.reload() mid-session is jarring. Never take the reload path on mobile.
-    if (this.app.isMobile) return false;
     return this.settings.reloadLivePreview && settings.livePreview != this.app.vault.config.livePreview;
   }
 

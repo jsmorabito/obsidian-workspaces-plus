@@ -128,8 +128,9 @@ Follow Obsidian's Developer Policies and Plugin Guidelines:
 
 - `isDesktopOnly: false` — the plugin is expected to run on mobile (phone and tablet).
 - No Node/Electron APIs anywhere in `src/` — keep it that way (`require`, `fs`, `path`, `os`, `child_process`, `electron`, `FileSystemAdapter`).
-- Guard desktop-only behavior behind `this.app.isMobile`. Known cases: the Live Preview reload path (`reloadIfNeeded`/`needsReload` in `main.ts`) and anything assuming a visible status bar — the status bar is hidden by default on mobile, so the ribbon button and command palette are the primary entry points there.
-- Per-platform active workspace is already tracked separately (`activeWorkspaceMobile` / `activeWorkspaceDesktop` in `settings.ts`, switched on `app.isMobile`).
+- Workspace Modes is desktop-only: it snapshots/restores Obsidian's core `app.json`, which is shared across platforms. Route every runtime Modes branch through the `modesEnabled` getter (`workspaceSettings && !app.isMobile`) rather than adding scattered `app.isMobile` checks — that includes the Live Preview reload path, which only runs inside a `modesEnabled` block.
+- The status bar is hidden by default on mobile. The **Open workspace switcher** command is the always-available entry point; the sidebar ribbon icon is off by default (same as desktop) and can be toggled on in settings.
+- Per-platform active workspace is tracked separately (`activeWorkspaceMobile` / `activeWorkspaceDesktop` in `settings.ts`, switched on `app.isMobile`).
 - Row action buttons in the switcher/mode modals are hover-revealed on desktop; on mobile (no hover) they render always-visible via the `.is-mobile` body class in `styles.css`.
 - Test with the desktop "Emulate mobile" developer toggle first, then on a real device via BRAT.
 

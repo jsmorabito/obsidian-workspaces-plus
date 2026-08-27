@@ -2,9 +2,10 @@
 //
 // main.ts can't be imported directly (it pulls in `obsidian`, popper, moment, ...),
 // so we transpile it and run it with a custom `require` that returns minimal stubs.
-// We only exercise pure decision logic -- the `modesEnabled` getter and
-// `loadSettings()` -- via Object.create(prototype), so the Plugin constructor and
-// the debounce()-based field initializers never run.
+// We exercise pure decision logic via Object.create(prototype), so the Plugin
+// constructor and the debounce()-based field initializers never run:
+//   - `modesEnabled` getter: desktop parity, forced off on mobile
+//   - `loadSettings()`: identical on both platforms, no per-platform mutation
 
 const assert = require("assert");
 const fs = require("fs");
@@ -104,43 +105,36 @@ const loadWith = async (isMobile, savedData) => {
     assert.strictEqual(p.modesEnabled, false);
   });
 
-  // --- loadSettings ---------------------------------------------------
+  // --- loadSettings: identical on both platforms, no per-platform mutation ---
   console.log("loadSettings");
 
-  await check("desktop + no saved data -> exactly DEFAULT_SETTINGS", async () => {
-    assert.deepStrictEqual(await loadWith(false, null), DEFAULT_SETTINGS);
-  });
+  for (const isMobile of [false, true]) {
+    const plat = isMobile ? "mobile" : "desktop";
 
-  await check("desktop + saved overrides -> merged over defaults, ribbon untouched", async () => {
-    const s = await loadWith(false, { saveOnChange: true, activeWorkspaceDesktop: "Work" });
-    assert.strictEqual(s.saveOnChange, true);
-    assert.strictEqual(s.activeWorkspaceDesktop, "Work");
-    assert.strictEqual(s.workspaceSwitcherRibbon, false);
-    assert.strictEqual(s.showInstructions, true); // default preserved
-  });
+    await check(`${plat} + no saved data -> exactly DEFAULT_SETTINGS`, async () => {
+      assert.deepStrictEqual(await loadWith(isMobile, null), DEFAULT_SETTINGS);
+    });
 
-  await check("desktop never forces the ribbon on, even with no saved data", async () => {
-    assert.strictEqual((await loadWith(false, null)).workspaceSwitcherRibbon, false);
-  });
+    await check(`${plat} + saved overrides -> merged over defaults`, async () => {
+      const s = await loadWith(isMobile, { saveOnChange: true, activeWorkspaceDesktop: "Work" });
+      assert.strictEqual(s.saveOnChange, true);
+      assert.strictEqual(s.activeWorkspaceDesktop, "Work");
+      assert.strictEqual(s.showInstructions, true); // untouched default preserved
+    });
 
-  await check("mobile + no saved data -> ribbon defaulted on", async () => {
-    assert.strictEqual((await loadWith(true, null)).workspaceSwitcherRibbon, true);
-  });
+    await check(`${plat} never forces workspaceSwitcherRibbon on`, async () => {
+      assert.strictEqual((await loadWith(isMobile, null)).workspaceSwitcherRibbon, false);
+      assert.strictEqual((await loadWith(isMobile, {})).workspaceSwitcherRibbon, false);
+    });
 
-  await check("mobile + saved data without the key -> ribbon defaulted on", async () => {
-    assert.strictEqual((await loadWith(true, { saveOnChange: true })).workspaceSwitcherRibbon, true);
-  });
-
-  await check("mobile + saved ribbon:false -> left as-is (no override)", async () => {
-    assert.strictEqual((await loadWith(true, { workspaceSwitcherRibbon: false })).workspaceSwitcherRibbon, false);
-  });
-
-  await check("mobile + saved ribbon:true -> stays on", async () => {
-    assert.strictEqual((await loadWith(true, { workspaceSwitcherRibbon: true })).workspaceSwitcherRibbon, true);
-  });
+    await check(`${plat} + saved ribbon value -> respected verbatim`, async () => {
+      assert.strictEqual((await loadWith(isMobile, { workspaceSwitcherRibbon: true })).workspaceSwitcherRibbon, true);
+      assert.strictEqual((await loadWith(isMobile, { workspaceSwitcherRibbon: false })).workspaceSwitcherRibbon, false);
+    });
+  }
 
   await check("loadSettings never mutates DEFAULT_SETTINGS", async () => {
-    await loadWith(true, null);
+    await loadWith(true, { workspaceSwitcherRibbon: true });
     assert.strictEqual(DEFAULT_SETTINGS.workspaceSwitcherRibbon, false);
   });
 
