@@ -74,6 +74,11 @@ export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDe
           control: { type: "toggle", key: "trackOpenFiles" },
         },
         {
+          name: TOGGLE_TEXT.preserveRibbon.name,
+          desc: TOGGLE_TEXT.preserveRibbon.desc,
+          control: { type: "toggle", key: "preserveRibbon" },
+        },
+        {
           name: TOGGLE_TEXT.systemDarkMode.name,
           desc: TOGGLE_TEXT.systemDarkMode.desc,
           control: { type: "toggle", key: "systemDarkMode" },

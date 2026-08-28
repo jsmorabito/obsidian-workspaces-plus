@@ -42,6 +42,8 @@ function pathJoin (parts: string[], sep = "/"): string {
   }).join(sep);
 }
 
+export const RIBBON_KEY = "left-ribbon";
+
 export default class Utils {
   SETTINGS_ATTR = "workspaces-plus:settings-v1";
   workspacePlugin: WorkspacePluginInstance;
@@ -286,6 +288,31 @@ export default class Utils {
     const currentLayout = workspace.getLayout();
     newLayout.main = currentLayout["main"] as WorkspaceLayoutNode;
     void workspace.changeLayout(newLayout);
+  }
+
+  syncRibbonAcrossWorkspaces (sourceLayout?: Record<string, unknown>): number {
+    const layout = sourceLayout ?? this.app.workspace.getLayout();
+    if (!layout || !(RIBBON_KEY in layout) || layout[RIBBON_KEY] === undefined) return 0;
+    const ribbonData: unknown = JSON.parse(JSON.stringify(layout[RIBBON_KEY]));
+
+    let count = 0;
+    for (const ws of Object.values(this.workspacePlugin.workspaces)) {
+      if (ws && typeof ws === "object") {
+        ws[RIBBON_KEY] = JSON.parse(JSON.stringify(ribbonData));
+        count++;
+      }
+    }
+    return count;
+  }
+
+  preserveRibbonInLayout (targetLayout: Workspaces, ribbonSource: Record<string, unknown>): Workspaces {
+    const result: Workspaces = Object.assign({}, targetLayout);
+    if (RIBBON_KEY in ribbonSource && ribbonSource[RIBBON_KEY] !== undefined) {
+      result[RIBBON_KEY] = JSON.parse(JSON.stringify(ribbonSource[RIBBON_KEY]));
+    } else {
+      delete result[RIBBON_KEY];
+    }
+    return result;
   }
 
   // Template string rendering with math. Credit to Liam Cain https://github.com/liamcain/obsidian-daily-notes-interface

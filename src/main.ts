@@ -6,6 +6,7 @@ import {
   debounce,
   WorkspaceCustomSettings,
   WorkspaceLeaf,
+  Workspaces,
 } from "obsidian";
 import { WorkspacesPlusSettings, WorkspacesPlusSettingsTab, DEFAULT_SETTINGS } from "./settings";
 import { WorkspacesPlusPluginWorkspaceModal } from "./workspaceModal";
@@ -155,6 +156,22 @@ export default class WorkspacesPlus extends Plugin {
       name: "Save current workspace and cycle to next",
       callback: () => this.cycleWorkspace(true),
     });
+    this.addCommand({
+      id: "sync-ribbon-to-all-workspaces",
+      name: "Sync current ribbon layout to all workspaces",
+      callback: () => this.syncRibbonToAllWorkspaces(),
+    });
+  }
+
+  syncRibbonToAllWorkspaces(): void {
+    if (!this.isNativePluginEnabled) return;
+    const count = this.utils.syncRibbonAcrossWorkspaces();
+    if (count > 0) {
+      this.workspacePlugin.saveData();
+      new Notice(`Synced ribbon layout to ${count} workspaces.`);
+    } else {
+      new Notice("No ribbon layout detected to sync.");
+    }
   }
 
   cycleWorkspace(saveCurrent: boolean = false): void {
@@ -458,6 +475,10 @@ export default class WorkspacesPlus extends Plugin {
     
     let explorerFoldState: unknown = await this.app.loadLocalStorage("file-explorer-unfold");
     if (explorerFoldState) customSettings.explorerFoldState = explorerFoldState;
+
+    if (this.settings.preserveRibbon) {
+      this.utils.syncRibbonAcrossWorkspaces();
+    }
     
     this.workspacePlugin.saveData();
   };
@@ -611,6 +632,7 @@ export default class WorkspacesPlus extends Plugin {
             if (!workspaceName || !plugin.isNativePluginEnabled) return;
             plugin.setLoadingStatus();
             let result;
+            const currentLayoutBeforeSwitch = plugin.app.workspace.getLayout();
             
             if (plugin.modesEnabled && plugin.utils.isMode(workspaceName)) {
               // if the workspace being loaded is a mode, invoke the mode loader
@@ -644,7 +666,11 @@ export default class WorkspacesPlus extends Plugin {
                     // A newer switch started while restore was running -- applying this
                     // (now-stale) layout would revert the user's screen back to it.
                     if (generation !== plugin.workspaceLoadGeneration) return;
-                    await this.app.workspace.changeLayout(workspace);
+                    let layoutToApply: Workspaces = workspace;
+                    if (plugin.settings.preserveRibbon && currentLayoutBeforeSwitch) {
+                      layoutToApply = plugin.utils.preserveRibbonInLayout(workspace, currentLayoutBeforeSwitch);
+                    }
+                    await this.app.workspace.changeLayout(layoutToApply);
                     if (generation !== plugin.workspaceLoadGeneration) return;
                     // changeLayout() creates the leaves, but leaves in the background stay
                     // "deferred" (a lightweight placeholder) until focused. Force-load every
