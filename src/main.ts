@@ -653,7 +653,22 @@ export default class WorkspacesPlus extends Plugin {
                     const leaves: WorkspaceLeaf[] = [];
                     this.app.workspace.iterateAllLeaves(leaf => leaves.push(leaf));
                     await Promise.all(
-                      leaves.filter(leaf => leaf.isDeferred).map(leaf => leaf.loadIfDeferred())
+                      leaves
+                        .filter(leaf => leaf.isDeferred)
+                        .map(leaf =>
+                          // Isolate each leaf. A leaf whose view type isn't registered
+                          // on this device -- e.g. a desktop-only plugin's view in a
+                          // layout opened on mobile/iPad -- rejects here, and an
+                          // unguarded Promise.all would then abort the whole restore:
+                          // saveData() is skipped and the sidebar / ribbon are left
+                          // half-rebuilt until the app is reloaded. Mirrors the
+                          // per-entry isolation in Utils.applyFileOverrides.
+                          Promise.resolve()
+                            .then(() => leaf.loadIfDeferred())
+                            .catch((e: unknown) => {
+                              console.error("failed to load deferred leaf:", e);
+                            })
+                        )
                     );
                     if (generation === plugin.workspaceLoadGeneration) this.saveData();
                   })
