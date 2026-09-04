@@ -119,7 +119,6 @@ declare module "obsidian" {
 
   export interface Workspace extends Events {
     updateOptions(): void;
-    pushClosable(closable: { close(): void }): void;
     saveLayout(): Promise<void>;
     on(name: "workspace-load", callback: (workspaceName: string) => void, ctx?: unknown): EventRef;
     on(

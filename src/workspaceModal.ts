@@ -8,7 +8,8 @@ const SETTINGS_ATTR = "workspaces-plus:settings-v1";
 export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string> {
   workspacePlugin: WorkspacePluginInstance;
   activeWorkspace: string;
-  popper: PopperInstance;
+  // Only ever created for the status-bar-anchored (non-hotkey, desktop) variant -- see open().
+  popper?: PopperInstance;
   settings: WorkspacesPlusSettings;
   showInstructions: boolean = false;
   invokedViaHotkey: boolean;
@@ -160,16 +161,23 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
   };
 
   open(): void {
-    this.app.keymap.pushScope(this.scope);
-    document.body.appendChild(this.containerEl);
+    // Delegate to Modal's own open() instead of reimplementing it by hand. Besides pushing the
+    // keymap scope and calling onOpen(), it also flips Modal's internal isOpen flag and registers
+    // the modal on Obsidian's own modal stack -- the hand-rolled version below (removed) skipped
+    // both. As of Obsidian 1.14.0, close() no-ops unless isOpen was set, so the modal could never
+    // be dismissed (escape, background click, or picking a workspace all silently failed to close
+    // it, freezing the UI until Obsidian was force-quit -- see issue #133). It also dropped the
+    // now-removed `workspace.pushClosable` call, which threw on every open (see issue #106).
+    super.open();
     if (!this.invokedViaHotkey && !this.app.isMobile) {
-      this.popper = createPopper(document.body.querySelector(".plugin-workspaces-plus"), this.modalEl, {
+      // activeDocument, not document -- super.open() just attached the modal under
+      // activeWindow's document (for popout-window support), so the popper reference must be
+      // looked up in that same document or positioning breaks across windows.
+      this.popper = createPopper(activeDocument.body.querySelector(".plugin-workspaces-plus"), this.modalEl, {
         placement: "top-start",
         modifiers: [{ name: "offset", options: { offset: [0, 10] } }],
       });
     }
-    this.onOpen();
-    this.app.workspace.pushClosable(this);
   }
 
   onOpen(): void {
@@ -181,7 +189,13 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
   }
 
   onClose(): void {
-    this.app.keymap.popScope(this.scope);
+    // Modal.close() already pops this.scope itself before calling onClose() (now that open()
+    // properly delegates to super.open(), see above) -- don't pop it a second time here.
+    // What close() doesn't know about is the popper open() creates for the status-bar-anchored
+    // variant; without destroying it, its window resize/scroll listeners (and the reference to
+    // this closed modal's DOM) leak on every picker open.
+    this.popper?.destroy();
+    this.popper = undefined;
     super.onClose();
   }
 
