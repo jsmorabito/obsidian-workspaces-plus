@@ -6,6 +6,7 @@ import {
   debounce,
   WorkspaceCustomSettings,
   WorkspaceLeaf,
+  Workspaces,
 } from "obsidian";
 import { WorkspacesPlusSettings, WorkspacesPlusSettingsTab, DEFAULT_SETTINGS } from "./settings";
 import { WorkspacesPlusPluginWorkspaceModal } from "./workspaceModal";
@@ -155,6 +156,24 @@ export default class WorkspacesPlus extends Plugin {
       name: "Save current workspace and cycle to next",
       callback: () => this.cycleWorkspace(true),
     });
+    this.addCommand({
+      id: "sync-ribbon-to-all-workspaces",
+      name: "Sync current ribbon layout to all workspaces",
+      callback: () => this.syncRibbonToAllWorkspaces(),
+    });
+  }
+
+  syncRibbonToAllWorkspaces(): void {
+    if (!this.isNativePluginEnabled) return;
+    const count = this.utils.syncRibbonAcrossWorkspaces();
+    if (count === null) {
+      new Notice("No ribbon layout detected to sync.");
+    } else if (count > 0) {
+      this.workspacePlugin.saveData();
+      new Notice(`Synced ribbon layout to ${count} workspaces.`);
+    } else {
+      new Notice("No other workspaces to sync the ribbon layout to.");
+    }
   }
 
   cycleWorkspace(saveCurrent: boolean = false): void {
@@ -458,6 +477,10 @@ export default class WorkspacesPlus extends Plugin {
     
     let explorerFoldState: unknown = await this.app.loadLocalStorage("file-explorer-unfold");
     if (explorerFoldState) customSettings.explorerFoldState = explorerFoldState;
+
+    if (this.settings.preserveRibbon) {
+      this.utils.syncRibbonAcrossWorkspaces();
+    }
     
     this.workspacePlugin.saveData();
   };
@@ -611,7 +634,7 @@ export default class WorkspacesPlus extends Plugin {
             if (!workspaceName || !plugin.isNativePluginEnabled) return;
             plugin.setLoadingStatus();
             let result;
-            
+
             if (plugin.modesEnabled && plugin.utils.isMode(workspaceName)) {
               // if the workspace being loaded is a mode, invoke the mode loader
               let modeName = workspaceName;
@@ -644,7 +667,14 @@ export default class WorkspacesPlus extends Plugin {
                     // A newer switch started while restore was running -- applying this
                     // (now-stale) layout would revert the user's screen back to it.
                     if (generation !== plugin.workspaceLoadGeneration) return;
-                    await this.app.workspace.changeLayout(workspace);
+                    // Captured here, right before use, rather than at the top of loadWorkspace --
+                    // the restore chain above can await real file I/O, and grabbing the ribbon
+                    // before that gap risks re-applying a snapshot the user has since changed.
+                    let layoutToApply: Workspaces = workspace;
+                    if (plugin.settings.preserveRibbon) {
+                      layoutToApply = plugin.utils.preserveRibbonInLayout(workspace, plugin.app.workspace.getLayout());
+                    }
+                    await this.app.workspace.changeLayout(layoutToApply);
                     if (generation !== plugin.workspaceLoadGeneration) return;
                     // changeLayout() creates the leaves, but leaves in the background stay
                     // "deferred" (a lightweight placeholder) until focused. Force-load every

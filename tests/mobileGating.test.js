@@ -28,6 +28,7 @@ const DEFAULT_SETTINGS = {
   modeSwitcherRibbon: false,
   replaceNativeRibbon: false,
   trackOpenFiles: true,
+  preserveRibbon: false,
   restoreLayoutOnStartup: false,
 };
 
@@ -130,6 +131,11 @@ const loadWith = async (isMobile, savedData) => {
     await check(`${plat} + saved ribbon value -> respected verbatim`, async () => {
       assert.strictEqual((await loadWith(isMobile, { workspaceSwitcherRibbon: true })).workspaceSwitcherRibbon, true);
       assert.strictEqual((await loadWith(isMobile, { workspaceSwitcherRibbon: false })).workspaceSwitcherRibbon, false);
+    });
+
+    await check(`${plat} + saved preserveRibbon value -> respected verbatim`, async () => {
+      assert.strictEqual((await loadWith(isMobile, { preserveRibbon: true })).preserveRibbon, true);
+      assert.strictEqual((await loadWith(isMobile, { preserveRibbon: false })).preserveRibbon, false);
     });
   }
 

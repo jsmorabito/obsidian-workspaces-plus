@@ -138,6 +138,7 @@ declare module "obsidian" {
     main?: WorkspaceLayoutNode;
     left?: WorkspaceLayoutNode;
     right?: WorkspaceLayoutNode;
+    "left-ribbon"?: unknown;
     active?: string;
     [x: string]: any; // includes the plugin's own settings key (workspaces-plus:settings-v1) and other internal/dynamic keys
   }

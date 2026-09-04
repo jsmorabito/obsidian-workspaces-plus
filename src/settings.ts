@@ -45,6 +45,10 @@ export const TOGGLE_TEXT: Record<string, ToggleText> = {
       "This option will auto save your current workspace on any layout change. " +
       "Leave this disabled if you want full control over when your workspace is saved.",
   },
+  preserveRibbon: {
+    name: "Preserve ribbon icons across workspaces",
+    desc: "Keep the current left ribbon icons and their order when switching workspaces instead of loading each workspace's saved ribbon state.",
+  },
   trackOpenFiles: {
     name: "Automatically track and restore open files",
     desc:
@@ -86,6 +90,7 @@ export class WorkspacesPlusSettings {
   modeSwitcherRibbon: boolean;
   replaceNativeRibbon: boolean;
   trackOpenFiles: boolean;
+  preserveRibbon: boolean;
   restoreLayoutOnStartup: boolean;
 }
 
@@ -104,6 +109,7 @@ export const DEFAULT_SETTINGS: WorkspacesPlusSettings = {
   modeSwitcherRibbon: false,
   replaceNativeRibbon: false,
   trackOpenFiles: true,
+  preserveRibbon: false,
   restoreLayoutOnStartup: false,
 };
 
@@ -245,6 +251,16 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.trackOpenFiles).onChange(value => {
           this.plugin.settings.trackOpenFiles = value;
+          void this.plugin.saveData(this.plugin.settings);
+        })
+      );
+
+    new Setting(containerEl)
+      .setName(TOGGLE_TEXT.preserveRibbon.name)
+      .setDesc(TOGGLE_TEXT.preserveRibbon.desc)
+      .addToggle(toggle =>
+        toggle.setValue(this.plugin.settings.preserveRibbon).onChange(value => {
+          this.plugin.settings.preserveRibbon = value;
           void this.plugin.saveData(this.plugin.settings);
         })
       );
