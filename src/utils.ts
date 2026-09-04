@@ -290,8 +290,8 @@ export default class Utils {
     void workspace.changeLayout(newLayout);
   }
 
-  syncRibbonAcrossWorkspaces (sourceLayout?: Record<string, unknown>): number {
-    const layout = sourceLayout ?? this.app.workspace.getLayout();
+  syncRibbonAcrossWorkspaces (): number {
+    const layout = this.app.workspace.getLayout();
     if (!layout || !(RIBBON_KEY in layout) || layout[RIBBON_KEY] === undefined) return 0;
     const ribbonData: unknown = JSON.parse(JSON.stringify(layout[RIBBON_KEY]));
 
@@ -306,12 +306,11 @@ export default class Utils {
   }
 
   preserveRibbonInLayout (targetLayout: Workspaces, ribbonSource: Record<string, unknown>): Workspaces {
+    // No ribbon captured to preserve -- leave the target's own saved ribbon state alone
+    // rather than stripping it, so switching still degrades to the pre-preserveRibbon behavior.
+    if (!(RIBBON_KEY in ribbonSource) || ribbonSource[RIBBON_KEY] === undefined) return targetLayout;
     const result: Workspaces = Object.assign({}, targetLayout);
-    if (RIBBON_KEY in ribbonSource && ribbonSource[RIBBON_KEY] !== undefined) {
-      result[RIBBON_KEY] = JSON.parse(JSON.stringify(ribbonSource[RIBBON_KEY]));
-    } else {
-      delete result[RIBBON_KEY];
-    }
+    result[RIBBON_KEY] = JSON.parse(JSON.stringify(ribbonSource[RIBBON_KEY]));
     return result;
   }
 
