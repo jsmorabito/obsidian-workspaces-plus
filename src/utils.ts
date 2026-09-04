@@ -287,20 +287,31 @@ export default class Utils {
     const workspace = this.app.workspace;
     const currentLayout = workspace.getLayout();
     newLayout.main = currentLayout["main"] as WorkspaceLayoutNode;
-    void workspace.changeLayout(newLayout);
+    // Mode switches never go through preserveRibbonInLayout's other call site (main.ts's
+    // loadWorkspace patch only covers plain workspace loads), so without this a mode's own
+    // stored ribbon -- usually just whatever was last synced into it -- would silently replace
+    // the ribbon the user currently has whenever preserveRibbon is on.
+    const layoutToApply = this.plugin.settings.preserveRibbon
+      ? this.preserveRibbonInLayout(newLayout, currentLayout)
+      : newLayout;
+    void workspace.changeLayout(layoutToApply);
   }
 
-  syncRibbonAcrossWorkspaces (): number {
+  // Returns the number of real workspaces synced, or null if there's no ribbon on the current
+  // layout to sync in the first place -- callers need to tell those two "nothing happened"
+  // cases apart to report an accurate message.
+  syncRibbonAcrossWorkspaces (): number | null {
     const layout = this.app.workspace.getLayout();
-    if (!layout || !(RIBBON_KEY in layout) || layout[RIBBON_KEY] === undefined) return 0;
-    const ribbonData: unknown = JSON.parse(JSON.stringify(layout[RIBBON_KEY]));
+    if (!(RIBBON_KEY in layout) || layout[RIBBON_KEY] === undefined) return null;
+    const ribbonJson = JSON.stringify(layout[RIBBON_KEY]);
 
     let count = 0;
-    for (const ws of Object.values(this.workspacePlugin.workspaces)) {
-      if (ws && typeof ws === "object") {
-        ws[RIBBON_KEY] = JSON.parse(JSON.stringify(ribbonData));
-        count++;
-      }
+    for (const [name, ws] of Object.entries(this.workspacePlugin.workspaces)) {
+      // Modes are keyed into this same map but aren't "workspaces" this setting is about --
+      // mergeSidebarLayout() above handles ribbon preservation for mode switches on its own.
+      if (this.isMode(name)) continue;
+      ws[RIBBON_KEY] = JSON.parse(ribbonJson);
+      count++;
     }
     return count;
   }

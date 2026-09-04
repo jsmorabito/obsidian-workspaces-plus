@@ -166,11 +166,13 @@ export default class WorkspacesPlus extends Plugin {
   syncRibbonToAllWorkspaces(): void {
     if (!this.isNativePluginEnabled) return;
     const count = this.utils.syncRibbonAcrossWorkspaces();
-    if (count > 0) {
+    if (count === null) {
+      new Notice("No ribbon layout detected to sync.");
+    } else if (count > 0) {
       this.workspacePlugin.saveData();
       new Notice(`Synced ribbon layout to ${count} workspaces.`);
     } else {
-      new Notice("No ribbon layout detected to sync.");
+      new Notice("No other workspaces to sync the ribbon layout to.");
     }
   }
 
@@ -632,8 +634,7 @@ export default class WorkspacesPlus extends Plugin {
             if (!workspaceName || !plugin.isNativePluginEnabled) return;
             plugin.setLoadingStatus();
             let result;
-            const currentLayoutBeforeSwitch = plugin.app.workspace.getLayout();
-            
+
             if (plugin.modesEnabled && plugin.utils.isMode(workspaceName)) {
               // if the workspace being loaded is a mode, invoke the mode loader
               let modeName = workspaceName;
@@ -666,9 +667,12 @@ export default class WorkspacesPlus extends Plugin {
                     // A newer switch started while restore was running -- applying this
                     // (now-stale) layout would revert the user's screen back to it.
                     if (generation !== plugin.workspaceLoadGeneration) return;
+                    // Captured here, right before use, rather than at the top of loadWorkspace --
+                    // the restore chain above can await real file I/O, and grabbing the ribbon
+                    // before that gap risks re-applying a snapshot the user has since changed.
                     let layoutToApply: Workspaces = workspace;
-                    if (plugin.settings.preserveRibbon && currentLayoutBeforeSwitch) {
-                      layoutToApply = plugin.utils.preserveRibbonInLayout(workspace, currentLayoutBeforeSwitch);
+                    if (plugin.settings.preserveRibbon) {
+                      layoutToApply = plugin.utils.preserveRibbonInLayout(workspace, plugin.app.workspace.getLayout());
                     }
                     await this.app.workspace.changeLayout(layoutToApply);
                     if (generation !== plugin.workspaceLoadGeneration) return;
