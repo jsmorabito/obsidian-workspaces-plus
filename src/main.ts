@@ -161,6 +161,11 @@ export default class WorkspacesPlus extends Plugin {
       name: "Sync current ribbon layout to all workspaces",
       callback: () => this.syncRibbonToAllWorkspaces(),
     });
+    this.addCommand({
+      id: "sync-sidebar-to-all-workspaces",
+      name: "Sync current sidebar layout to all workspaces",
+      callback: () => this.syncSidebarToAllWorkspaces(),
+    });
   }
 
   syncRibbonToAllWorkspaces(): void {
@@ -173,6 +178,19 @@ export default class WorkspacesPlus extends Plugin {
       new Notice(`Synced ribbon layout to ${count} workspaces.`);
     } else {
       new Notice("No other workspaces to sync the ribbon layout to.");
+    }
+  }
+
+  syncSidebarToAllWorkspaces(): void {
+    if (!this.isNativePluginEnabled) return;
+    const count = this.utils.syncSidebarAcrossWorkspaces();
+    if (count === null) {
+      new Notice("No sidebar layout detected to sync.");
+    } else if (count > 0) {
+      this.workspacePlugin.saveData();
+      new Notice(`Synced sidebar layout to ${count} workspaces.`);
+    } else {
+      new Notice("No other workspaces to sync the sidebar layout to.");
     }
   }
 
@@ -481,7 +499,11 @@ export default class WorkspacesPlus extends Plugin {
     if (this.settings.preserveRibbon) {
       this.utils.syncRibbonAcrossWorkspaces();
     }
-    
+
+    if (this.settings.preserveSidebarLayout) {
+      this.utils.syncSidebarAcrossWorkspaces();
+    }
+
     this.workspacePlugin.saveData();
   };
 
@@ -671,8 +693,14 @@ export default class WorkspacesPlus extends Plugin {
                     // the restore chain above can await real file I/O, and grabbing the ribbon
                     // before that gap risks re-applying a snapshot the user has since changed.
                     let layoutToApply: Workspaces = workspace;
-                    if (plugin.settings.preserveRibbon) {
-                      layoutToApply = plugin.utils.preserveRibbonInLayout(workspace, plugin.app.workspace.getLayout());
+                    if (plugin.settings.preserveRibbon || plugin.settings.preserveSidebarLayout) {
+                      const currentLayout = plugin.app.workspace.getLayout();
+                      if (plugin.settings.preserveRibbon) {
+                        layoutToApply = plugin.utils.preserveRibbonInLayout(workspace, currentLayout);
+                      }
+                      if (plugin.settings.preserveSidebarLayout) {
+                        layoutToApply = plugin.utils.preserveSidebarInLayout(layoutToApply, currentLayout);
+                      }
                     }
                     await this.app.workspace.changeLayout(layoutToApply);
                     if (generation !== plugin.workspaceLoadGeneration) return;

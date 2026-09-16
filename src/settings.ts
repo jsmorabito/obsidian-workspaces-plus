@@ -49,6 +49,10 @@ export const TOGGLE_TEXT: Record<string, ToggleText> = {
     name: "Preserve ribbon icons across workspaces",
     desc: "Keep the current left ribbon icons and their order when switching workspaces instead of loading each workspace's saved ribbon state.",
   },
+  preserveSidebarLayout: {
+    name: "Preserve sidebar layout across workspaces",
+    desc: "Keep the current left and right sidebar panes, their arrangement, and view state when switching workspaces instead of loading each workspace's saved sidebar layout.",
+  },
   trackOpenFiles: {
     name: "Automatically track and restore open files",
     desc:
@@ -91,6 +95,7 @@ export class WorkspacesPlusSettings {
   replaceNativeRibbon: boolean;
   trackOpenFiles: boolean;
   preserveRibbon: boolean;
+  preserveSidebarLayout: boolean;
   restoreLayoutOnStartup: boolean;
 }
 
@@ -110,6 +115,7 @@ export const DEFAULT_SETTINGS: WorkspacesPlusSettings = {
   replaceNativeRibbon: false,
   trackOpenFiles: true,
   preserveRibbon: false,
+  preserveSidebarLayout: false,
   restoreLayoutOnStartup: false,
 };
 
@@ -261,6 +267,16 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.preserveRibbon).onChange(value => {
           this.plugin.settings.preserveRibbon = value;
+          void this.plugin.saveData(this.plugin.settings);
+        })
+      );
+
+    new Setting(containerEl)
+      .setName(TOGGLE_TEXT.preserveSidebarLayout.name)
+      .setDesc(TOGGLE_TEXT.preserveSidebarLayout.desc)
+      .addToggle(toggle =>
+        toggle.setValue(this.plugin.settings.preserveSidebarLayout).onChange(value => {
+          this.plugin.settings.preserveSidebarLayout = value;
           void this.plugin.saveData(this.plugin.settings);
         })
       );
