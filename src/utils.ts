@@ -43,6 +43,7 @@ function pathJoin (parts: string[], sep = "/"): string {
 }
 
 export const RIBBON_KEY = "left-ribbon";
+const SIDEBAR_KEYS = ["left", "right"] as const;
 
 export default class Utils {
   SETTINGS_ATTR = "workspaces-plus:settings-v1";
@@ -124,7 +125,10 @@ export default class Utils {
     }
     // load the mode's sidebar layouts, if enabled
     if (modeSettings?.saveSidebar && workspaceSettings.mode) {
-      mode && this.mergeSidebarLayout(mode);
+      // The mode has its own explicit, per-mode sidebar choice -- a more specific setting
+      // than the global preserveSidebarLayout toggle, so it should win rather than be
+      // silently overwritten by whatever sidebar happens to be on screen.
+      mode && this.mergeSidebarLayout(mode, { skipSidebarPreserve: true });
       this.updateFoldState(modeSettings);
     } else {
       workspace && this.mergeSidebarLayout(workspace);
@@ -283,7 +287,7 @@ export default class Utils {
     settings["theme"] = this.getDarkModeFromOS();
   }
 
-  mergeSidebarLayout (newLayout: Workspaces) {
+  mergeSidebarLayout (newLayout: Workspaces, { skipSidebarPreserve = false }: { skipSidebarPreserve?: boolean } = {}) {
     const workspace = this.app.workspace;
     const currentLayout = workspace.getLayout();
     newLayout.main = currentLayout["main"] as WorkspaceLayoutNode;
@@ -291,9 +295,20 @@ export default class Utils {
     // loadWorkspace patch only covers plain workspace loads), so without this a mode's own
     // stored ribbon -- usually just whatever was last synced into it -- would silently replace
     // the ribbon the user currently has whenever preserveRibbon is on.
-    const layoutToApply = this.plugin.settings.preserveRibbon
+    let layoutToApply = this.plugin.settings.preserveRibbon
       ? this.preserveRibbonInLayout(newLayout, currentLayout)
       : newLayout;
+    // Same rationale as the ribbon branch above: mode switches don't go through
+    // preserveSidebarInLayout's other call site (main.ts's loadWorkspace patch only covers
+    // plain workspace loads), so without this a mode's own stored sidebar would silently
+    // replace the sidebar the user currently has whenever preserveSidebarLayout is on.
+    // skipSidebarPreserve lets a caller opt a specific load out of that override -- loadMode()
+    // uses it when the mode has its own explicit saveSidebar setting, since that per-mode
+    // choice is more specific than the global toggle and should win rather than be silently
+    // overwritten by whatever sidebar happens to be on screen.
+    if (this.plugin.settings.preserveSidebarLayout && !skipSidebarPreserve) {
+      layoutToApply = this.preserveSidebarInLayout(layoutToApply, currentLayout);
+    }
     void workspace.changeLayout(layoutToApply);
   }
 
@@ -322,6 +337,36 @@ export default class Utils {
     if (!(RIBBON_KEY in ribbonSource) || ribbonSource[RIBBON_KEY] === undefined) return targetLayout;
     const result: Workspaces = Object.assign({}, targetLayout);
     result[RIBBON_KEY] = JSON.parse(JSON.stringify(ribbonSource[RIBBON_KEY]));
+    return result;
+  }
+
+  // Returns the number of real workspaces synced, or null if there's no sidebar layout on the
+  // current view to sync in the first place -- mirrors syncRibbonAcrossWorkspaces.
+  syncSidebarAcrossWorkspaces (): number | null {
+    const layout = this.app.workspace.getLayout();
+    const present = SIDEBAR_KEYS.filter(key => key in layout && layout[key] !== undefined);
+    if (present.length === 0) return null;
+    const json: Record<string, string> = {};
+    for (const key of present) json[key] = JSON.stringify(layout[key]);
+
+    let count = 0;
+    for (const [name, ws] of Object.entries(this.workspacePlugin.workspaces)) {
+      // Modes are keyed into this same map but aren't "workspaces" this setting is about --
+      // mergeSidebarLayout() above handles sidebar preservation for mode switches on its own.
+      if (this.isMode(name)) continue;
+      for (const key of present) ws[key] = JSON.parse(json[key]);
+      count++;
+    }
+    return count;
+  }
+
+  preserveSidebarInLayout (targetLayout: Workspaces, sidebarSource: Record<string, unknown>): Workspaces {
+    // No sidebar captured to preserve -- leave the target's own saved sidebar state alone
+    // rather than stripping it, so switching still degrades to the pre-preserveSidebarLayout behavior.
+    const present = SIDEBAR_KEYS.filter(key => key in sidebarSource && sidebarSource[key] !== undefined);
+    if (present.length === 0) return targetLayout;
+    const result: Workspaces = Object.assign({}, targetLayout);
+    for (const key of present) result[key] = JSON.parse(JSON.stringify(sidebarSource[key]));
     return result;
   }
 

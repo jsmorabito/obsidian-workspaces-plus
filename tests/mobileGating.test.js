@@ -29,6 +29,7 @@ const DEFAULT_SETTINGS = {
   replaceNativeRibbon: false,
   trackOpenFiles: true,
   preserveRibbon: false,
+  preserveSidebarLayout: false,
   restoreLayoutOnStartup: false,
 };
 
@@ -136,6 +137,11 @@ const loadWith = async (isMobile, savedData) => {
     await check(`${plat} + saved preserveRibbon value -> respected verbatim`, async () => {
       assert.strictEqual((await loadWith(isMobile, { preserveRibbon: true })).preserveRibbon, true);
       assert.strictEqual((await loadWith(isMobile, { preserveRibbon: false })).preserveRibbon, false);
+    });
+
+    await check(`${plat} + saved preserveSidebarLayout value -> respected verbatim`, async () => {
+      assert.strictEqual((await loadWith(isMobile, { preserveSidebarLayout: true })).preserveSidebarLayout, true);
+      assert.strictEqual((await loadWith(isMobile, { preserveSidebarLayout: false })).preserveSidebarLayout, false);
     });
   }
 

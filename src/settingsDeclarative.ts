@@ -79,6 +79,11 @@ export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDe
           control: { type: "toggle", key: "preserveRibbon" },
         },
         {
+          name: TOGGLE_TEXT.preserveSidebarLayout.name,
+          desc: TOGGLE_TEXT.preserveSidebarLayout.desc,
+          control: { type: "toggle", key: "preserveSidebarLayout" },
+        },
+        {
           name: TOGGLE_TEXT.systemDarkMode.name,
           desc: TOGGLE_TEXT.systemDarkMode.desc,
           control: { type: "toggle", key: "systemDarkMode" },
