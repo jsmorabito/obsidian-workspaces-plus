@@ -27,10 +27,7 @@ export const WORKSPACE_BADGE_OPTIONS: Record<WorkspaceBadgeMode, string> = {
 
 export const WORKSPACE_BADGES_TEXT: ToggleText = {
   name: "Workspace switcher badges",
-  desc:
-    "Choose what to show next to each workspace in the quick switcher: the custom hotkey assigned to it " +
-    "under Obsidian's Hotkeys settings, or a number from 1 to 9 (based on its position in the list) that " +
-    "you can press to jump straight to it, Linear-style.",
+  desc: "Show each workspace's assigned hotkey, or a number (1-9) you can press to jump straight to it.",
 };
 
 // Shared name/desc text for the plugin's toggle settings, consumed by both display() (the
