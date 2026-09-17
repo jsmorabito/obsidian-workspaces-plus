@@ -166,6 +166,16 @@ export default class WorkspacesPlus extends Plugin {
       name: "Sync current sidebar layout to all workspaces",
       callback: () => this.syncSidebarToAllWorkspaces(),
     });
+    this.addCommand({
+      id: "new-empty-workspace",
+      name: "New empty workspace",
+      callback: () => {
+        if (!this.isNativePluginEnabled) return;
+        const name = this.utils.createBlankWorkspace();
+        this.workspacePlugin.loadWorkspace(name);
+        new Notice(`Created and switched to workspace "${name}"`);
+      },
+    });
   }
 
   syncRibbonToAllWorkspaces(): void {

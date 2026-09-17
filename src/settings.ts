@@ -558,7 +558,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Per workspace")
+      .setName("Workspaces")
       .setHeading()
       .addExtraButton(button =>
         button
@@ -678,7 +678,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
         .then(setting => buildWorkspaceDeleteSetting(setting, this.plugin, workspaceName, () => this.renderSettings()));
     });
 
-    new Setting(containerEl).setName("Per mode").setHeading().setClass("requires-workspace-modes");
+    new Setting(containerEl).setName("Modes").setHeading().setClass("requires-workspace-modes");
 
     Object.entries(workspaces).forEach(entry => {
       const [modeName] = entry;
