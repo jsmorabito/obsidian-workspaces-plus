@@ -7,7 +7,15 @@
 import { PluginSettingTab } from "obsidian";
 import type { SettingDefinitionItem, SettingGroupItem, SettingDefinitionPage, Workspaces } from "obsidian";
 import type { WorkspacesPlusSettingsTab } from "./settings";
-import { TOGGLE_TEXT, WORKSPACE_BADGES_TEXT, WORKSPACE_BADGE_OPTIONS, getChildIds } from "./settings";
+import {
+  TOGGLE_TEXT,
+  WORKSPACE_BADGES_TEXT,
+  WORKSPACE_BADGE_OPTIONS,
+  getChildIds,
+  buildWorkspaceIconSetting,
+  buildWorkspaceIconColorSetting,
+  buildWorkspaceRenameSetting,
+} from "./settings";
 
 export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDefinitionItem[] {
   if (!tab.plugin.utils.isNativePluginEnabled) {
@@ -41,6 +49,16 @@ export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDe
           name: TOGGLE_TEXT.showWorkspaceDescriptions.name,
           desc: TOGGLE_TEXT.showWorkspaceDescriptions.desc,
           control: { type: "toggle", key: "showWorkspaceDescriptions" },
+        },
+        {
+          name: TOGGLE_TEXT.showWorkspaceIconInSwitcher.name,
+          desc: TOGGLE_TEXT.showWorkspaceIconInSwitcher.desc,
+          control: { type: "toggle", key: "showWorkspaceIconInSwitcher" },
+        },
+        {
+          name: TOGGLE_TEXT.showWorkspaceIconInStatusBar.name,
+          desc: TOGGLE_TEXT.showWorkspaceIconInStatusBar.desc,
+          control: { type: "toggle", key: "showWorkspaceIconInStatusBar" },
         },
         {
           name: WORKSPACE_BADGES_TEXT.name,
@@ -141,13 +159,42 @@ function buildWorkspacePage(
       },
     }));
 
+  const workspaceSettings = tab.plugin.utils.getWorkspaceSettings(workspaceName);
+  const onSave = () => tab.plugin.workspacePlugin.saveData();
+
   return {
     type: "page",
     name: workspaceName,
     items: [
       {
+        name: "Workspace name",
+        desc: "Renaming here also reassigns any hotkey already set for this workspace.",
+        render: setting =>
+          buildWorkspaceRenameSetting(setting, tab.plugin, workspaceName, () => {
+            // We're on this per-workspace *sub-page*, keyed by workspaceName, and a rename means
+            // that key no longer exists in the freshly recomputed definitions -- calling
+            // tab.update() directly re-renders whatever page is currently active, but that page
+            // is gone, which rendered blank instead of falling back to anything. Reopening the
+            // tab from scratch first resets navigation back to the (still-valid) top-level list;
+            // only then is it safe to recompute -- openTabById() alone re-displays the tab's
+            // already-cached settingItems, still showing the pre-rename name until update() runs.
+            tab.app.setting.open();
+            tab.app.setting.openTabById(tab.plugin.manifest.id);
+            tab.update();
+          }),
+      },
+      {
         name: "Workspace description",
         control: { type: "text", key: `workspace-description:${encodeURIComponent(workspaceName)}` },
+      },
+      {
+        name: "Workspace icon",
+        desc: "Shown next to the workspace name in the quick switcher. Leave blank to use the default icon.",
+        render: setting => buildWorkspaceIconSetting(setting, tab.app, workspaceSettings, onSave),
+      },
+      {
+        name: "Workspace icon color",
+        render: setting => buildWorkspaceIconColorSetting(setting, workspaceSettings, onSave),
       },
       { type: "group", heading: "File overrides", items: overrides },
     ],
@@ -236,6 +283,9 @@ export function setControlValue(tab: WorkspacesPlusSettingsTab, key: string, val
       break;
     case "modeSwitcherRibbon":
       tab.plugin.toggleModeRibbonButton();
+      break;
+    case "showWorkspaceIconInStatusBar":
+      tab.plugin.updateStatusBarIcon();
       break;
     case "workspaceSettings":
       if (value) tab.plugin.enableModesFeature();

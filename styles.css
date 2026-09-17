@@ -56,6 +56,12 @@
   /* max-width: 40em; */
 }
 
+/* Icon is off by default (see the "Show workspace icon in quick switcher" setting) -- only widen
+   the left inset to make room for it when it's actually showing. */
+.has-workspace-icons .workspace-results .workspace-description {
+  padding-left: 2.5rem;
+}
+
 /* Holds the active-workspace checkmark and the hotkey/number badge together as one Linear-style
    cluster (checkmark, then badge), right-aligned and vertically centered on the row regardless of
    the row's height -- e.g. a row with a description below the name is taller, but this still sits
@@ -90,6 +96,23 @@
   white-space: nowrap;
 }
 
+/* The workspace's own icon, on the opposite side of the row from the row-end cluster above --
+   top/transform (not margin-top) centers it on the row regardless of row height, same reasoning
+   as the row-end cluster. */
+.workspace-results .workspace-icon {
+  display: inline-flex;
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--icon-color, var(--text-muted));
+}
+
+.workspace-results .workspace-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
 .workspace-results {
   padding: 0.1em 0.1em;
   position: relative;
@@ -112,6 +135,10 @@ body.is-mobile .workspace-item {
   cursor: pointer;
   white-space: normal;
   border: 1px solid transparent;
+}
+
+.has-workspace-icons .workspace-item {
+  padding-left: 2.5rem;
 }
 
 .workspaces-plus-color-scheme-icon > svg {
@@ -188,4 +215,17 @@ body.is-mobile .side-dock-actions div[aria-label="Manage modes"] svg {
   flex: 1 1 auto;
   flex-grow: 0;
   margin-right: 20px;
+}
+
+.workspace-icon-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+}
+
+.workspace-icon-preview {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.6em;
+  color: var(--icon-color, var(--text-muted));
 }

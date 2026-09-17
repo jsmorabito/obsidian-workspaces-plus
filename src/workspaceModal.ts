@@ -11,7 +11,7 @@ import {
   Platform,
 } from "obsidian";
 import { createPopper, Instance as PopperInstance } from "@popperjs/core";
-import { WorkspacesPlusSettings } from "./settings";
+import { WorkspacesPlusSettings, DEFAULT_WORKSPACE_ICON } from "./settings";
 import { createConfirmationDialog } from "./confirm";
 import WorkspacesPlus from "./main";
 
@@ -63,6 +63,9 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
     this.bgEl.parentElement.addClass("workspaces-plus-transparent-bg-important");
 
     this.modalEl.classList.add("workspaces-plus-modal");
+    // Off by default -- reserving left padding for an icon that's never shown would just be
+    // wasted space for anyone who hasn't turned this on.
+    if (this.settings.showWorkspaceIconInSwitcher) this.modalEl.classList.add("has-workspace-icons");
 
     // handle custom modal positioning when invoked via the status bar (desktop only --
     // the status bar is hidden on mobile, so there is no anchor to position against)
@@ -192,7 +195,7 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
         },
         {
           command: "ctrl ,",
-          purpose: "workspace settings",
+          purpose: "settings",
         },
         {
           command: "esc",
@@ -409,6 +412,7 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
     const wrapperEl = existingEl ?? this.wrapSuggestion(el, resultEl);
     this.addDescription(wrapperEl, workspaceName);
     this.addBadge(wrapperEl, workspaceName);
+    this.addWorkspaceIcon(wrapperEl, workspaceName);
   }
 
   // Replaces the old hover-revealed rename/delete/platform icon row -- those are still reachable
@@ -423,6 +427,19 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
     if (!hotkeys?.length) return;
     const badgeEl = this.getRowEndEl(wrapperEl).createDiv("workspace-badge");
     badgeEl.textContent = formatHotkey(hotkeys[0]);
+  }
+
+  addWorkspaceIcon(wrapperEl: HTMLElement, workspaceName: string): void {
+    if (!this.settings.showWorkspaceIconInSwitcher) return;
+    let workspaceSettings: WorkspaceCustomSettings;
+    try {
+      workspaceSettings = this.workspacePlugin.workspaces[workspaceName][SETTINGS_ATTR] as WorkspaceCustomSettings;
+    } catch {
+      // property chain may not exist yet, fall back to undefined
+    }
+    const iconEl = wrapperEl.createDiv("workspace-icon");
+    setIcon(iconEl, workspaceSettings?.icon || DEFAULT_WORKSPACE_ICON);
+    if (workspaceSettings?.iconColor) iconEl.style.color = workspaceSettings.iconColor;
   }
 
   wrapSuggestion(childEl: HTMLElement, parentEl: HTMLElement): HTMLElement {

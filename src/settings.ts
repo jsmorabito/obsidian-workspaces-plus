@@ -1,6 +1,17 @@
 import WorkspacesPlus from "./main";
-import { App, PluginSettingTab, Setting, setIcon, WorkspaceLayoutNode, SettingDefinitionItem } from "obsidian";
+import {
+  App,
+  ColorComponent,
+  Notice,
+  PluginSettingTab,
+  Setting,
+  setIcon,
+  WorkspaceCustomSettings,
+  WorkspaceLayoutNode,
+  SettingDefinitionItem,
+} from "obsidian";
 import { FileSuggest } from "./suggesters/fileSuggest";
+import { IconSuggest } from "./suggesters/iconSuggest";
 import {
   getSettingDefinitions as declarativeGetSettingDefinitions,
   getControlValue as declarativeGetControlValue,
@@ -30,6 +41,107 @@ export const WORKSPACE_BADGES_TEXT: ToggleText = {
   desc: "Show each workspace's assigned hotkey, or a number (1-9) you can press to jump straight to it.",
 };
 
+// Falls back to this plugin's own existing default workspace icon (used for the status bar
+// segment in main.ts) when a workspace has no custom icon set, so an unconfigured workspace looks
+// the same in the switcher as it always has elsewhere in the plugin.
+export const DEFAULT_WORKSPACE_ICON = "pane-layout";
+
+// Purely the color swatch shown before a workspace has a custom icon color -- never written to a
+// workspace's settings on its own; only picking a color (or resetting away from one) does that.
+const DEFAULT_ICON_COLOR_SWATCH = "#888888";
+
+// Builds the "Workspace icon" control (a text field with icon-name autocomplete, plus a live
+// preview) shared between display() (pre-1.13.0) and getSettingDefinitions()'s render callback
+// (1.13.0+), so the two can't drift the way two independently hand-rolled UIs would.
+export function buildWorkspaceIconSetting(
+  setting: Setting,
+  app: App,
+  workspaceSettings: WorkspaceCustomSettings,
+  onSave: () => void
+): void {
+  const previewEl = createSpan({ cls: "workspace-icon-preview" });
+  setIcon(previewEl, workspaceSettings.icon || DEFAULT_WORKSPACE_ICON);
+  setting.controlEl.prepend(previewEl);
+  setting.addText(text => {
+    text.inputEl.type = "text";
+    text.setPlaceholder(DEFAULT_WORKSPACE_ICON);
+    text.setValue(workspaceSettings.icon ?? "");
+    new IconSuggest(app, text.inputEl);
+    text.onChange(value => {
+      const iconId = value.trim();
+      if (iconId) workspaceSettings.icon = iconId;
+      else delete workspaceSettings.icon;
+      onSave();
+      setIcon(previewEl, iconId || DEFAULT_WORKSPACE_ICON);
+    });
+  });
+}
+
+// Same sharing rationale as buildWorkspaceIconSetting() above. The color picker itself has no
+// "unset" state (it's a native color input, always showing some color), so a reset button is
+// needed to actually clear iconColor back to "use the app's default" rather than just setting it
+// to this swatch's own value.
+export function buildWorkspaceIconColorSetting(setting: Setting, workspaceSettings: WorkspaceCustomSettings, onSave: () => void): void {
+  let colorPicker: ColorComponent;
+  setting
+    .addColorPicker(picker => {
+      colorPicker = picker;
+      picker.setValue(workspaceSettings.iconColor || DEFAULT_ICON_COLOR_SWATCH).onChange(value => {
+        workspaceSettings.iconColor = value;
+        onSave();
+      });
+    })
+    .addExtraButton(button => {
+      button
+        .setIcon("rotate-ccw")
+        .setTooltip("Reset to default color")
+        .onClick(() => {
+          delete workspaceSettings.iconColor;
+          onSave();
+          colorPicker.setValue(DEFAULT_ICON_COLOR_SWATCH);
+        });
+    });
+}
+
+// Shared between display() and getSettingDefinitions()'s render callback, same rationale as the
+// icon settings above. Commits on blur/Enter rather than on every keystroke (unlike the other
+// per-workspace text fields) because a successful rename changes the workspace's key -- every
+// other control on this page (file overrides, the other two icon settings) is keyed by the old
+// name and needs a full refresh (onRenamed) once it changes, which isn't something you want
+// firing after every character typed.
+export function buildWorkspaceRenameSetting(
+  setting: Setting,
+  plugin: WorkspacesPlus,
+  workspaceName: string,
+  onRenamed: () => void
+): void {
+  setting.addText(text => {
+    text.setValue(workspaceName);
+    const commit = () => {
+      const newName = text.inputEl.value;
+      if (newName.trim() === workspaceName) {
+        text.setValue(workspaceName);
+        return;
+      }
+      const result = plugin.utils.renameWorkspace(workspaceName, newName);
+      if (result.success) {
+        new Notice(`Renamed workspace to "${newName.trim()}"`);
+        onRenamed();
+      } else {
+        if (result.reason) new Notice(result.reason);
+        text.setValue(workspaceName);
+      }
+    };
+    text.inputEl.addEventListener("blur", commit);
+    text.inputEl.addEventListener("keydown", evt => {
+      if (evt.key === "Enter") {
+        evt.preventDefault();
+        text.inputEl.blur();
+      }
+    });
+  });
+}
+
 // Shared name/desc text for the plugin's toggle settings, consumed by both display() (the
 // pre-1.13.0 fallback) and getSettingDefinitions() (the 1.13.0+ declarative UI) so the two
 // separately-structured implementations can't silently drift apart on wording. Keyed by the
@@ -48,6 +160,14 @@ export const TOGGLE_TEXT: Record<string, ToggleText> = {
   showWorkspaceDescriptions: {
     name: "Show workspace descriptions in switcher",
     desc: "Show each workspace's description (set under Per workspace below) beneath its name in the quick switcher.",
+  },
+  showWorkspaceIconInSwitcher: {
+    name: "Show workspace icon in quick switcher",
+    desc: "Show each workspace's icon (set under Per workspace below) next to its name in the quick switcher.",
+  },
+  showWorkspaceIconInStatusBar: {
+    name: "Show workspace icon in status bar",
+    desc: "Show the active workspace's icon (set under Per workspace below) in place of the default icon in the status bar.",
   },
   workspaceSwitcherRibbon: { name: "Show workspace sidebar ribbon icon" },
   replaceNativeRibbon: { name: "Hide the native workspace sidebar ribbon icon" },
@@ -105,6 +225,8 @@ export class WorkspacesPlusSettings {
   showInstructions: boolean;
   showDeletePrompt: boolean;
   showWorkspaceDescriptions: boolean;
+  showWorkspaceIconInSwitcher: boolean;
+  showWorkspaceIconInStatusBar: boolean;
   workspaceBadges: WorkspaceBadgeMode;
   saveOnSwitch: boolean;
   saveOnChange: boolean;
@@ -127,6 +249,8 @@ export const DEFAULT_SETTINGS: WorkspacesPlusSettings = {
   showInstructions: true,
   showDeletePrompt: true,
   showWorkspaceDescriptions: false,
+  showWorkspaceIconInSwitcher: false,
+  showWorkspaceIconInStatusBar: false,
   workspaceBadges: "hotkey",
   saveOnSwitch: false,
   saveOnChange: false,
@@ -170,7 +294,15 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
     this.plugin = plugin;
   }
 
+  // Thin wrapper so internal refreshes (e.g. after a rename, see buildWorkspaceRenameSetting's
+  // onRenamed below) can call renderSettings() directly instead of this deprecated override --
+  // this project's lint config forbids suppressing that warning, and re-running Obsidian's own
+  // display() lifecycle method isn't otherwise necessary for a plain internal re-render.
   display (): void {
+    this.renderSettings();
+  }
+
+  renderSettings (): void {
     const { containerEl } = this;
     containerEl.empty();
 
@@ -208,6 +340,27 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
         toggle.setValue(this.plugin.settings.showWorkspaceDescriptions).onChange(value => {
           this.plugin.settings.showWorkspaceDescriptions = value;
           void this.plugin.saveData(this.plugin.settings);
+        })
+      );
+
+    new Setting(containerEl)
+      .setName(TOGGLE_TEXT.showWorkspaceIconInSwitcher.name)
+      .setDesc(TOGGLE_TEXT.showWorkspaceIconInSwitcher.desc)
+      .addToggle(toggle =>
+        toggle.setValue(this.plugin.settings.showWorkspaceIconInSwitcher).onChange(value => {
+          this.plugin.settings.showWorkspaceIconInSwitcher = value;
+          void this.plugin.saveData(this.plugin.settings);
+        })
+      );
+
+    new Setting(containerEl)
+      .setName(TOGGLE_TEXT.showWorkspaceIconInStatusBar.name)
+      .setDesc(TOGGLE_TEXT.showWorkspaceIconInStatusBar.desc)
+      .addToggle(toggle =>
+        toggle.setValue(this.plugin.settings.showWorkspaceIconInStatusBar).onChange(value => {
+          this.plugin.settings.showWorkspaceIconInStatusBar = value;
+          void this.plugin.saveData(this.plugin.settings);
+          this.plugin.updateStatusBarIcon();
         })
       );
 
@@ -395,6 +548,12 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
           });
         });
       const subContainerEL = containerEl.createDiv({ cls: "settings-container" });
+      new Setting(subContainerEL)
+        .setName("Workspace name")
+        .setDesc("Renaming here also reassigns any hotkey already set for this workspace.")
+        .then(setting =>
+          buildWorkspaceRenameSetting(setting, this.plugin, workspaceName, () => this.renderSettings())
+        );
       new Setting(subContainerEL).setName("Workspace description").addText(textfield => {
         textfield.inputEl.type = "text";
         textfield.inputEl.parentElement?.addClass("search-input-container");
@@ -404,6 +563,17 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
           this.plugin.workspacePlugin.saveData();
         });
       });
+
+      new Setting(subContainerEL)
+        .setName("Workspace icon")
+        .setDesc("Shown next to the workspace name in the quick switcher. Leave blank to use the default icon.")
+        .then(setting =>
+          buildWorkspaceIconSetting(setting, this.app, workspaceSettings, () => this.plugin.workspacePlugin.saveData())
+        );
+
+      new Setting(subContainerEL)
+        .setName("Workspace icon color")
+        .then(setting => buildWorkspaceIconColorSetting(setting, workspaceSettings, () => this.plugin.workspacePlugin.saveData()));
 
       // new Setting(containerEl)
       //   .setName(`Auto save workspace on changes (not yet implemented)`)
