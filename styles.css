@@ -48,7 +48,7 @@
 
 .workspace-results .workspace-description {
   font-size: 0.8em;
-  padding: 0px 7rem 0.6rem 1rem;
+  padding: 0px 7rem 0.6rem 2.5rem;
   color: var(--text-muted);
   line-height: 1;
   width: 100%;
@@ -90,6 +90,23 @@
   white-space: nowrap;
 }
 
+/* The workspace's own icon, on the opposite side of the row from the row-end cluster above --
+   top/transform (not margin-top) centers it on the row regardless of row height, same reasoning
+   as the row-end cluster. */
+.workspace-results .workspace-icon {
+  display: inline-flex;
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--icon-color, var(--text-muted));
+}
+
+.workspace-results .workspace-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
 .workspace-results {
   padding: 0.1em 0.1em;
   position: relative;
@@ -106,7 +123,7 @@ body.is-mobile .workspace-item {
 .workspace-item {
   display: inline-block;
   width: 100%;
-  padding: 5px 7rem 5px 1rem;
+  padding: 5px 7rem 5px 2.5rem;
   font-size: 16px;
   position: relative;
   cursor: pointer;
@@ -188,4 +205,17 @@ body.is-mobile .side-dock-actions div[aria-label="Manage modes"] svg {
   flex: 1 1 auto;
   flex-grow: 0;
   margin-right: 20px;
+}
+
+.workspace-icon-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+}
+
+.workspace-icon-preview {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.6em;
+  color: var(--icon-color, var(--text-muted));
 }

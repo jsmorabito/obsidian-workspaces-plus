@@ -1,6 +1,16 @@
 import WorkspacesPlus from "./main";
-import { App, PluginSettingTab, Setting, setIcon, WorkspaceLayoutNode, SettingDefinitionItem } from "obsidian";
+import {
+  App,
+  ColorComponent,
+  PluginSettingTab,
+  Setting,
+  setIcon,
+  WorkspaceCustomSettings,
+  WorkspaceLayoutNode,
+  SettingDefinitionItem,
+} from "obsidian";
 import { FileSuggest } from "./suggesters/fileSuggest";
+import { IconSuggest } from "./suggesters/iconSuggest";
 import {
   getSettingDefinitions as declarativeGetSettingDefinitions,
   getControlValue as declarativeGetControlValue,
@@ -29,6 +39,69 @@ export const WORKSPACE_BADGES_TEXT: ToggleText = {
   name: "Workspace switcher badges",
   desc: "Show each workspace's assigned hotkey, or a number (1-9) you can press to jump straight to it.",
 };
+
+// Falls back to this plugin's own existing default workspace icon (used for the status bar
+// segment in main.ts) when a workspace has no custom icon set, so an unconfigured workspace looks
+// the same in the switcher as it always has elsewhere in the plugin.
+export const DEFAULT_WORKSPACE_ICON = "pane-layout";
+
+// Purely the color swatch shown before a workspace has a custom icon color -- never written to a
+// workspace's settings on its own; only picking a color (or resetting away from one) does that.
+const DEFAULT_ICON_COLOR_SWATCH = "#888888";
+
+// Builds the "Workspace icon" control (a text field with icon-name autocomplete, plus a live
+// preview) shared between display() (pre-1.13.0) and getSettingDefinitions()'s render callback
+// (1.13.0+), so the two can't drift the way two independently hand-rolled UIs would.
+export function buildWorkspaceIconSetting(
+  setting: Setting,
+  app: App,
+  workspaceSettings: WorkspaceCustomSettings,
+  onSave: () => void
+): void {
+  const previewEl = createSpan({ cls: "workspace-icon-preview" });
+  setIcon(previewEl, workspaceSettings.icon || DEFAULT_WORKSPACE_ICON);
+  setting.controlEl.prepend(previewEl);
+  setting.addText(text => {
+    text.inputEl.type = "text";
+    text.inputEl.parentElement?.addClass("search-input-container");
+    text.setPlaceholder(DEFAULT_WORKSPACE_ICON);
+    text.setValue(workspaceSettings.icon ?? "");
+    new IconSuggest(app, text.inputEl);
+    text.onChange(value => {
+      const iconId = value.trim();
+      if (iconId) workspaceSettings.icon = iconId;
+      else delete workspaceSettings.icon;
+      onSave();
+      setIcon(previewEl, iconId || DEFAULT_WORKSPACE_ICON);
+    });
+  });
+}
+
+// Same sharing rationale as buildWorkspaceIconSetting() above. The color picker itself has no
+// "unset" state (it's a native color input, always showing some color), so a reset button is
+// needed to actually clear iconColor back to "use the app's default" rather than just setting it
+// to this swatch's own value.
+export function buildWorkspaceIconColorSetting(setting: Setting, workspaceSettings: WorkspaceCustomSettings, onSave: () => void): void {
+  let colorPicker: ColorComponent;
+  setting
+    .addColorPicker(picker => {
+      colorPicker = picker;
+      picker.setValue(workspaceSettings.iconColor || DEFAULT_ICON_COLOR_SWATCH).onChange(value => {
+        workspaceSettings.iconColor = value;
+        onSave();
+      });
+    })
+    .addExtraButton(button => {
+      button
+        .setIcon("rotate-ccw")
+        .setTooltip("Reset to default color")
+        .onClick(() => {
+          delete workspaceSettings.iconColor;
+          onSave();
+          colorPicker.setValue(DEFAULT_ICON_COLOR_SWATCH);
+        });
+    });
+}
 
 // Shared name/desc text for the plugin's toggle settings, consumed by both display() (the
 // pre-1.13.0 fallback) and getSettingDefinitions() (the 1.13.0+ declarative UI) so the two
@@ -404,6 +477,17 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
           this.plugin.workspacePlugin.saveData();
         });
       });
+
+      new Setting(subContainerEL)
+        .setName("Workspace icon")
+        .setDesc("Shown next to the workspace name in the quick switcher. Leave blank to use the default icon.")
+        .then(setting =>
+          buildWorkspaceIconSetting(setting, this.app, workspaceSettings, () => this.plugin.workspacePlugin.saveData())
+        );
+
+      new Setting(subContainerEL)
+        .setName("Workspace icon color")
+        .then(setting => buildWorkspaceIconColorSetting(setting, workspaceSettings, () => this.plugin.workspacePlugin.saveData()));
 
       // new Setting(containerEl)
       //   .setName(`Auto save workspace on changes (not yet implemented)`)

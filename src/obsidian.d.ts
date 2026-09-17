@@ -167,6 +167,11 @@ declare module "obsidian" {
   export interface WorkspaceCustomSettings {
     mode?: string | null;
     description?: string;
+    // Lucide icon id (see getIconIds()) shown next to the workspace in the quick switcher.
+    // Unset falls back to DEFAULT_WORKSPACE_ICON.
+    icon?: string;
+    // Hex color applied to that icon. Unset uses the app's normal icon color.
+    iconColor?: string;
     fileOverrides?: Record<string, string>;
     trackedFiles?: Record<string, string>;
     explorerFoldState?: unknown;
