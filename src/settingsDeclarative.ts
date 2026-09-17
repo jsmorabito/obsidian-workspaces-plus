@@ -7,7 +7,7 @@
 import { PluginSettingTab } from "obsidian";
 import type { SettingDefinitionItem, SettingGroupItem, SettingDefinitionPage, Workspaces } from "obsidian";
 import type { WorkspacesPlusSettingsTab } from "./settings";
-import { TOGGLE_TEXT, getChildIds } from "./settings";
+import { TOGGLE_TEXT, WORKSPACE_BADGES_TEXT, WORKSPACE_BADGE_OPTIONS, getChildIds } from "./settings";
 
 export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDefinitionItem[] {
   if (!tab.plugin.utils.isNativePluginEnabled) {
@@ -36,6 +36,16 @@ export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDe
           name: TOGGLE_TEXT.showDeletePrompt.name,
           desc: TOGGLE_TEXT.showDeletePrompt.desc,
           control: { type: "toggle", key: "showDeletePrompt" },
+        },
+        {
+          name: TOGGLE_TEXT.showWorkspaceDescriptions.name,
+          desc: TOGGLE_TEXT.showWorkspaceDescriptions.desc,
+          control: { type: "toggle", key: "showWorkspaceDescriptions" },
+        },
+        {
+          name: WORKSPACE_BADGES_TEXT.name,
+          desc: WORKSPACE_BADGES_TEXT.desc,
+          control: { type: "dropdown", key: "workspaceBadges", options: WORKSPACE_BADGE_OPTIONS },
         },
         {
           name: TOGGLE_TEXT.workspaceSwitcherRibbon.name,

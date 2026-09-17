@@ -1,10 +1,39 @@
-import { FuzzySuggestModal, WorkspacePluginInstance, FuzzyMatch, Notice, Scope, setIcon, WorkspaceCustomSettings } from "obsidian";
+import {
+  FuzzySuggestModal,
+  WorkspacePluginInstance,
+  FuzzyMatch,
+  Notice,
+  Scope,
+  setIcon,
+  WorkspaceCustomSettings,
+  Hotkey,
+  Modifier,
+  Platform,
+} from "obsidian";
 import { createPopper, Instance as PopperInstance } from "@popperjs/core";
 import { WorkspacesPlusSettings } from "./settings";
 import { createConfirmationDialog } from "./confirm";
 import WorkspacesPlus from "./main";
 
 const SETTINGS_ATTR = "workspaces-plus:settings-v1";
+
+// [mac symbol, other-platform label] for each modifier, matching how Obsidian's own hotkey UI
+// distinguishes platforms (symbols on mac, words elsewhere).
+const MODIFIER_LABELS: Record<Modifier, [string, string]> = {
+  Mod: ["⌘", "Ctrl"],
+  Ctrl: ["⌃", "Ctrl"],
+  Meta: ["⌘", "Win"],
+  Alt: ["⌥", "Alt"],
+  Shift: ["⇧", "Shift"],
+};
+
+function formatHotkey(hotkey: Hotkey): string {
+  const platformIdx = Platform.isMacOS ? 0 : 1;
+  const modifiers = hotkey.modifiers.map(modifier => MODIFIER_LABELS[modifier][platformIdx]);
+  const key = hotkey.key.length === 1 ? hotkey.key.toUpperCase() : hotkey.key;
+  return [...modifiers, key].join(" ");
+}
+
 export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string> {
   workspacePlugin: WorkspacePluginInstance;
   activeWorkspace: string;
@@ -83,6 +112,43 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
     this.scope.register([], "ArrowDown", evt => {
       if (!evt.isComposing) return this.chooser.setSelectedItem(this.chooser.selectedItem + 1, true), false;
     });
+    this.scope.register(["Ctrl"], ",", () => this.openWorkspaceSettings());
+    // Linear-style quick switch: bare number keys jump to the nth visible workspace. Only
+    // registered in "number" badge mode -- otherwise digits behave as normal search input, and a
+    // workspace's own custom hotkey (registered globally via Obsidian's command/hotkey system,
+    // independent of this modal's Scope) remains the only way to jump to it by keyboard.
+    if (this.settings.workspaceBadges === "number") {
+      for (let i = 1; i <= 9; i++) {
+        this.scope.register([], String(i), evt => this.quickSwitchToIndex(i - 1, evt));
+      }
+    }
+  }
+
+  quickSwitchToIndex = (index: number, evt: KeyboardEvent): boolean | void => {
+    // Only takes over 1-9 when the search box is empty -- with a query typed, digits need to work
+    // as ordinary filter characters (e.g. a workspace name containing a number). Renaming uses a
+    // contenteditable div, not the prompt input, so also let digits type normally there.
+    if (this.inputEl.value || (evt.target as HTMLElement)?.isContentEditable) return;
+    // Looked up the same way as the badge numbers themselves (see refreshNumberBadges) -- both
+    // need the row that's actually on screen at this position, which chooser.values/suggestions
+    // don't reliably track (see the badge-positioning fix for why).
+    const resultEl = document.body.querySelector<HTMLElement>("div.workspaces-plus-modal div.prompt-results");
+    const wrapperEl = resultEl?.querySelectorAll<HTMLElement>(":scope > .workspace-results")[index];
+    const workspaceName = wrapperEl?.dataset.workspaceName;
+    if (!workspaceName) return;
+    this.loadWorkspace(workspaceName);
+    this.close();
+    return false;
+  };
+
+  // Points at this plugin's own settings tab (per-workspace description, file overrides, etc.)
+  // rather than cluttering the switcher itself with per-row detail -- one keystroke away instead
+  // of having to hunt for it via Community plugins > Workspaces Plus.
+  openWorkspaceSettings(): boolean {
+    this.close();
+    this.app.setting.open();
+    this.app.setting.openTabById(this.plugin.manifest.id);
+    return false;
   }
 
   buildInstructions(): void {
@@ -109,6 +175,12 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
           },
         ];
       }
+      if (this.settings.workspaceBadges === "number") {
+        instructions.push({
+          command: "1-9",
+          purpose: "quick switch",
+        });
+      }
       instructions.push(
         {
           command: "ctrl ↵",
@@ -117,6 +189,10 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
         {
           command: "shift ⌫",
           purpose: "delete",
+        },
+        {
+          command: "ctrl ,",
+          purpose: "workspace settings",
         },
         {
           command: "esc",
@@ -186,6 +262,49 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
     let selectedIdx = this.getItems().findIndex(workspace => workspace === this.activeWorkspace);
     this.chooser.setSelectedItem(selectedIdx);
     this.chooser.suggestions[this.chooser.selectedItem]?.scrollIntoViewIfNeeded();
+    this.watchNumberBadges();
+  }
+
+  // Obsidian's own suggestion rendering doesn't finish inserting every row into the DOM
+  // synchronously -- calling refreshNumberBadges() right after onOpen()/onInputChanged() could run
+  // before some rows existed yet, so it numbered whatever had landed so far instead of the full
+  // list (e.g. a single row present at that instant getting numbered "1" regardless of its real
+  // position). Watching resultEl directly sidesteps guessing at that timing: whenever rows are
+  // actually added or removed, this re-numbers from what's really in the DOM at that moment.
+  numberBadgeObserver?: MutationObserver;
+
+  watchNumberBadges(): void {
+    this.numberBadgeObserver?.disconnect();
+    this.numberBadgeObserver = undefined;
+    if (this.settings.workspaceBadges !== "number") return;
+    const resultEl = document.body.querySelector<HTMLElement>("div.workspaces-plus-modal div.prompt-results");
+    if (!resultEl) return;
+    this.refreshNumberBadges(resultEl);
+    this.numberBadgeObserver = new MutationObserver(() => this.refreshNumberBadges(resultEl));
+    this.numberBadgeObserver.observe(resultEl, { childList: true });
+  }
+
+  // Walks resultEl's own direct children -- the .workspace-results wrappers this plugin creates
+  // and controls itself -- instead of Obsidian's own chooser.suggestions/values bookkeeping, which
+  // doesn't reliably correspond to this plugin's DOM (rows can get rendered more than once across
+  // a modal's lifetime, e.g. re-filtering).
+  refreshNumberBadges(resultEl: HTMLElement): void {
+    Array.from(resultEl.querySelectorAll<HTMLElement>(":scope > .workspace-results")).forEach((wrapperEl, index) => {
+      const rowEndEl = this.getRowEndEl(wrapperEl);
+      rowEndEl.querySelector(".workspace-badge")?.remove();
+      if (index >= 9) return;
+      const badgeEl = rowEndEl.createDiv("workspace-badge");
+      badgeEl.textContent = String(index + 1);
+    });
+  }
+
+  // The checkmark and badge live together in one flex row, right-aligned and vertically centered
+  // on the item -- Linear-style, checkmark then badge -- rather than each independently
+  // absolutely-positioned (the checkmark used to sit at the opposite end of the row from the
+  // badge, and a fixed top offset on the badge alone put it wherever the row happened to be
+  // tallest, e.g. below a description, instead of centered on the row).
+  getRowEndEl(wrapperEl: HTMLElement): HTMLElement {
+    return wrapperEl.querySelector<HTMLElement>(":scope > .workspace-row-end") ?? wrapperEl.createDiv("workspace-row-end");
   }
 
   onClose(): void {
@@ -196,6 +315,8 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
     // this closed modal's DOM) leak on every picker open.
     this.popper?.destroy();
     this.popper = undefined;
+    this.numberBadgeObserver?.disconnect();
+    this.numberBadgeObserver = undefined;
     super.onClose();
   }
 
@@ -279,59 +400,57 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
     super.renderSuggestion(item, el);
     const workspaceName = el.textContent;
     const resultEl = document.body.querySelector<HTMLElement>("div.workspaces-plus-modal div.prompt-results");
-    const existingEl = resultEl.querySelector<HTMLElement>('div[data-workspace-name="' + workspaceName + '"]');
-    let wrapperEl;
-    if (existingEl) {
-      wrapperEl = existingEl;
-    } else {
-      wrapperEl = this.wrapSuggestion(el, resultEl);
-    }
-    let isMobile;
-    try {
-      isMobile = this.workspacePlugin.workspaces[workspaceName].left.type == "mobile-drawer";
-    } catch {
-      // property chain may not exist yet, fall back to undefined
-    }
-    this.addDeleteButton(wrapperEl, workspaceName);
-    this.addRenameButton(wrapperEl, el);
-    this.addPlatformButton(wrapperEl, isMobile ? "mobile" : "desktop");
+    // Must match .workspace-results (the outer row wrapper), not the inner .workspace-item text
+    // div -- both used to carry the same data-workspace-name attribute, so this query matched the
+    // inner div instead, and treating that as the row's wrapper corrupted the row's structure
+    // (descriptions/badges nested one level too deep instead of alongside the name) whenever a row
+    // got re-rendered a second time, which threw off position-based numbering for other rows too.
+    const existingEl = resultEl.querySelector<HTMLElement>('.workspace-results[data-workspace-name="' + workspaceName + '"]');
+    const wrapperEl = existingEl ?? this.wrapSuggestion(el, resultEl);
     this.addDescription(wrapperEl, workspaceName);
+    this.addBadge(wrapperEl, workspaceName);
+  }
+
+  // Replaces the old hover-revealed rename/delete/platform icon row -- those are still reachable
+  // by keyboard (ctrl ↵ rename, shift ⌫ delete; see the instructions bar) or from this plugin's
+  // own settings tab (ctrl ,), so this slot is free to show what's actually useful to see at a
+  // glance: the workspace's assigned hotkey. (The "number" badge mode is handled separately, in
+  // refreshNumberBadges() -- it needs each row's position in the fully-rendered list, which isn't
+  // available yet at this point; see the comment there.)
+  addBadge(wrapperEl: HTMLElement, workspaceName: string): void {
+    if (this.settings.workspaceBadges === "number") return;
+    const hotkeys = this.plugin.app.hotkeyManager.getHotkeys(`${this.plugin.manifest.id}:${workspaceName}`);
+    if (!hotkeys?.length) return;
+    const badgeEl = this.getRowEndEl(wrapperEl).createDiv("workspace-badge");
+    badgeEl.textContent = formatHotkey(hotkeys[0]);
   }
 
   wrapSuggestion(childEl: HTMLElement, parentEl: HTMLElement): HTMLElement {
     const wrapperEl = createDiv();
     wrapperEl.addClass("workspace-results");
+    wrapperEl.dataset.workspaceName = childEl.textContent;
     childEl.dataset.workspaceName = childEl.textContent;
     childEl.removeClass("suggestion-item");
     childEl.addClass("workspace-item");
     childEl.addClass("workspace-name");
+    // childEl appended before the row-end cluster is created -- .workspace-item has its own
+    // position: relative (needed for the rename text cursor), so when it's .is-selected and gets
+    // an opaque background, CSS paints later-DOM-order positioned siblings on top of earlier ones.
+    // Creating the row-end cluster (checkmark, badge) after childEl keeps it painting on top of
+    // the selected-row background instead of getting hidden underneath it.
+    wrapperEl.appendChild(childEl);
     if (childEl.textContent === this.workspacePlugin.activeWorkspace) {
-      const activeIcon = wrapperEl.createDiv("active-workspace");
+      // Appended first within the cluster so it lands to the left of the badge -- see getRowEndEl().
+      const activeIcon = this.getRowEndEl(wrapperEl).createDiv("active-workspace");
       setIcon(activeIcon, "check");
     }
-    wrapperEl.appendChild(childEl);
     parentEl.appendChild(wrapperEl);
     // wrapperEl.appendChild(descEl);
     return wrapperEl;
   }
 
-  addRenameButton(wrapperEl: HTMLElement, el: HTMLElement): void {
-    const renameIcon = wrapperEl.createDiv("rename-workspace");
-    renameIcon.setAttribute("aria-label", "Rename workspace");
-    renameIcon.setAttribute("aria-label-position", "top");
-    setIcon(renameIcon, "pencil");
-    renameIcon.addEventListener("click", event => this.onRenameClick(event, el));
-  }
-
-  addDeleteButton(wrapperEl: HTMLElement, workspaceName: string): void {
-    const deleteIcon = wrapperEl.createDiv("delete-workspace");
-    deleteIcon.setAttribute("aria-label", "Delete workspace");
-    deleteIcon.setAttribute("aria-label-position", "top");
-    setIcon(deleteIcon, "trash-2");
-    deleteIcon.addEventListener("click", event => this.deleteWorkspace(workspaceName));
-  }
-
   addDescription(wrapperEl: HTMLElement, workspaceName: string): void {
+    if (!this.settings.showWorkspaceDescriptions) return;
     let description;
     try {
       description = (this.workspacePlugin.workspaces[workspaceName][SETTINGS_ATTR] as WorkspaceCustomSettings)[
@@ -344,18 +463,6 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
       const descEl = wrapperEl.createDiv("workspace-description");
       descEl.textContent = description;
     }
-  }
-
-  addPlatformButton(wrapperEl: HTMLElement, platform: string): void {
-    const renameIcon = wrapperEl.createDiv("platform");
-    if (platform == "mobile") {
-      renameIcon.setAttribute("aria-label", "Mobile workspace");
-      setIcon(renameIcon, "smartphone");
-    } else {
-      renameIcon.setAttribute("aria-label", "Desktop workspace");
-      setIcon(renameIcon, "monitor");
-    }
-    renameIcon.setAttribute("aria-label-position", "top");
   }
 
   onRenameClick = (evt: MouseEvent | KeyboardEvent, el: HTMLElement): void => {

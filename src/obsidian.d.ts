@@ -12,7 +12,7 @@ declare module "obsidian" {
   export interface Chooser<T> {
     setSelectedItem(selectedIdx: number, scroll?: boolean): void;
     useSelectedItem(evt: MouseEvent | KeyboardEvent): void;
-    values: { [x: string]: { item: T } };
+    values: { item: T }[];
     selectedItem: number;
     chooser: Chooser<T>;
     setSuggestions(items: T[]): void;
@@ -50,9 +50,16 @@ declare module "obsidian" {
       editorCommands: Record<string, unknown>;
     };
     hotkeyManager: {
-      getHotkeys(id: string): unknown;
-      setHotkeys(id: string, hotkeys: unknown): void;
-      removeHotkeys(id: string, hotkeys: unknown): void;
+      getHotkeys(id: string): Hotkey[] | null;
+      setHotkeys(id: string, hotkeys: Hotkey[]): void;
+      removeHotkeys(id: string, hotkeys: Hotkey[]): void;
+    };
+    // The app-level settings modal. Undocumented, but stable and widely relied on by community
+    // plugins for exactly this -- jumping a user straight to a specific settings tab (here, this
+    // plugin's own tab) instead of making them find it via Community plugins themselves.
+    setting: {
+      open(): void;
+      openTabById(id: string): void;
     };
     disableCssTransition(): void;
     enableCssTransition(): void;
