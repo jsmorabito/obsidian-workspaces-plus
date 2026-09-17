@@ -15,6 +15,7 @@ import {
   buildWorkspaceIconSetting,
   buildWorkspaceIconColorSetting,
   buildWorkspaceRenameSetting,
+  buildWorkspaceDeleteSetting,
 } from "./settings";
 
 export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDefinitionItem[] {
@@ -155,6 +156,19 @@ export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDe
   ];
 }
 
+// Used after a rename or delete, both of which invalidate the per-workspace *sub-page* you're
+// standing on (it's keyed by workspaceName, and that key just changed or stopped existing) --
+// calling tab.update() directly re-renders whatever page is currently active, but that page is
+// gone, which rendered blank instead of falling back to anything. Reopening the tab from scratch
+// first resets navigation back to the (still-valid) top-level list; only then is it safe to
+// recompute -- openTabById() alone re-displays the tab's already-cached settingItems, still
+// showing the stale pre-change state until update() runs.
+function returnToTopLevel(tab: WorkspacesPlusSettingsTab): void {
+  tab.app.setting.open();
+  tab.app.setting.openTabById(tab.plugin.manifest.id);
+  tab.update();
+}
+
 function buildWorkspacePage(
   tab: WorkspacesPlusSettingsTab,
   workspaceName: string,
@@ -184,19 +198,7 @@ function buildWorkspacePage(
       {
         name: "Workspace name",
         desc: "Renaming here also reassigns any hotkey already set for this workspace.",
-        render: setting =>
-          buildWorkspaceRenameSetting(setting, tab.plugin, workspaceName, () => {
-            // We're on this per-workspace *sub-page*, keyed by workspaceName, and a rename means
-            // that key no longer exists in the freshly recomputed definitions -- calling
-            // tab.update() directly re-renders whatever page is currently active, but that page
-            // is gone, which rendered blank instead of falling back to anything. Reopening the
-            // tab from scratch first resets navigation back to the (still-valid) top-level list;
-            // only then is it safe to recompute -- openTabById() alone re-displays the tab's
-            // already-cached settingItems, still showing the pre-rename name until update() runs.
-            tab.app.setting.open();
-            tab.app.setting.openTabById(tab.plugin.manifest.id);
-            tab.update();
-          }),
+        render: setting => buildWorkspaceRenameSetting(setting, tab.plugin, workspaceName, () => returnToTopLevel(tab)),
       },
       {
         name: "Workspace description",
@@ -212,6 +214,10 @@ function buildWorkspacePage(
         render: setting => buildWorkspaceIconColorSetting(setting, workspaceSettings, onSave),
       },
       { type: "group", heading: "File overrides", items: overrides },
+      {
+        name: "Delete this workspace",
+        render: setting => buildWorkspaceDeleteSetting(setting, tab.plugin, workspaceName, () => returnToTopLevel(tab)),
+      },
     ],
   };
 }
