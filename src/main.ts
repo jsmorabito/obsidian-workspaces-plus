@@ -11,6 +11,7 @@ import {
 import { WorkspacesPlusSettings, WorkspacesPlusSettingsTab, DEFAULT_SETTINGS, DEFAULT_WORKSPACE_ICON } from "./settings";
 import { WorkspacesPlusPluginWorkspaceModal } from "./workspaceModal";
 import { WorkspacesPlusPluginModeModal } from "./modeModal";
+import { NewWorkspaceModal } from "./newWorkspaceModal";
 import { around } from "monkey-around";
 import Utils from "./utils";
 import { cycleWorkspace as runWorkspaceCycle } from "./workspaceCycle";
@@ -27,6 +28,7 @@ export default class WorkspacesPlus extends Plugin {
   nativeWorkspaceRibbonItem: HTMLElement;
   isNativePluginEnabled: boolean;
   utils: Utils;
+  settingsTab: WorkspacesPlusSettingsTab;
   // Set when setPlatformWorkspace() triggers a workspace-load at startup (only happens when
   // settings.restoreLayoutOnStartup is on), so enableModesFeature()'s own onWorkspaceLoad()
   // bootstrap call can skip re-running it. One-shot: consumed (cleared) the first time
@@ -64,7 +66,8 @@ export default class WorkspacesPlus extends Plugin {
     );
 
     // add the settings tab
-    this.addSettingTab(new WorkspacesPlusSettingsTab(this.app, this));
+    this.settingsTab = new WorkspacesPlusSettingsTab(this.app, this);
+    this.addSettingTab(this.settingsTab);
 
     this.registerEventHandlers();
     this.registerCommands();
@@ -171,9 +174,7 @@ export default class WorkspacesPlus extends Plugin {
       name: "New empty workspace",
       callback: () => {
         if (!this.isNativePluginEnabled) return;
-        const name = this.utils.createBlankWorkspace();
-        this.workspacePlugin.loadWorkspace(name);
-        new Notice(`Created and switched to workspace "${name}"`);
+        new NewWorkspaceModal(this).open();
       },
     });
   }

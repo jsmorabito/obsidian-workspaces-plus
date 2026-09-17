@@ -45,6 +45,7 @@ const stubs = {
   "./settings": { DEFAULT_SETTINGS, WorkspacesPlusSettingsTab: class {} },
   "./workspaceModal": { WorkspacesPlusPluginWorkspaceModal: class {} },
   "./modeModal": { WorkspacesPlusPluginModeModal: class {} },
+  "./newWorkspaceModal": { NewWorkspaceModal: class {} },
   "./utils": { default: class {} },
   "monkey-around": { around: () => noop },
   "./workspaceCycle": { cycleWorkspace: noop },

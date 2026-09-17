@@ -18,6 +18,17 @@ import {
   buildWorkspaceDeleteSetting,
 } from "./settings";
 
+// Called from main.ts after any workspace-list-changing action that doesn't already have a
+// direct reference to this tab's own instance -- e.g. the "New empty workspace" command, which
+// (unlike everything else in this file) can run on any Obsidian version and outside the settings
+// tab's own context entirely. update() only exists on 1.13.0+, hence the optional-call cast
+// rather than calling it directly the way the rest of this file does (safe there only because
+// those call sites are themselves only ever reached once Obsidian has already chosen the
+// declarative renderer, i.e. only on 1.13.0+).
+export function refreshIfDeclarative(tab: WorkspacesPlusSettingsTab): void {
+  (tab as unknown as { update?: () => void }).update?.();
+}
+
 export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDefinitionItem[] {
   if (!tab.plugin.utils.isNativePluginEnabled) {
     return [{ name: "Please enable the workspaces plugin under core plugins before using this plugin" }];
@@ -140,7 +151,7 @@ export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDe
             .setIcon("plus")
             .setTooltip("Create a new blank workspace")
             .onClick(() => {
-              const name = tab.plugin.utils.createBlankWorkspace();
+              const { name } = tab.plugin.utils.createBlankWorkspace();
               new Notice(`Created workspace "${name}" -- click it below to rename or configure it.`);
               tab.update();
             }),
