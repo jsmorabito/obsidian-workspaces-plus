@@ -169,7 +169,16 @@ function buildWorkspacePage(
       {
         name: "Workspace name",
         desc: "Renaming here also reassigns any hotkey already set for this workspace.",
-        render: setting => buildWorkspaceRenameSetting(setting, tab.plugin, workspaceName, () => tab.update()),
+        render: setting =>
+          buildWorkspaceRenameSetting(setting, tab.plugin, workspaceName, () => {
+            // Not tab.update() -- we're on this per-workspace *sub-page*, keyed by workspaceName,
+            // and a rename means that key no longer exists in the freshly recomputed definitions.
+            // update() re-renders whatever page is currently active, but that page is gone, which
+            // rendered blank instead of falling back to anything. Reopening the tab from scratch
+            // lands back on the (still-valid) top-level list instead.
+            tab.app.setting.open();
+            tab.app.setting.openTabById(tab.plugin.manifest.id);
+          }),
       },
       {
         name: "Workspace description",
