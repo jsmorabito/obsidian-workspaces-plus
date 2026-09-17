@@ -49,7 +49,7 @@ export const DEFAULT_WORKSPACE_ICON = "pane-layout";
 
 // Purely the color swatch shown before a workspace has a custom icon color -- never written to a
 // workspace's settings on its own; only picking a color (or resetting away from one) does that.
-const DEFAULT_ICON_COLOR_SWATCH = "#888888";
+export const DEFAULT_ICON_COLOR_SWATCH = "#888888";
 
 // Builds the "Workspace icon" control (a text field with icon-name autocomplete, plus a live
 // preview) shared between display() (pre-1.13.0) and getSettingDefinitions()'s render callback
@@ -565,8 +565,12 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
           .setIcon("plus")
           .setTooltip("Create a new blank workspace")
           .onClick(() => {
-            const name = this.plugin.utils.createBlankWorkspace();
-            new Notice(`Created workspace "${name}" -- click it below to rename or configure it.`);
+            // No name option supplied, so this can't fail (see createBlankWorkspace's own
+            // comment) -- checked anyway since its return type no longer lets `name` be read
+            // without narrowing on `success` first.
+            const result = this.plugin.utils.createBlankWorkspace();
+            if (!result.success) return;
+            new Notice(`Created workspace "${result.name}" -- click it below to rename or configure it.`);
             this.renderSettings();
           })
       );

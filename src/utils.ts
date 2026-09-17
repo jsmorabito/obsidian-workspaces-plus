@@ -134,10 +134,25 @@ export default class Utils {
   // saveWorkspace() (would save the current layout, not a blank one), so hotkey/command
   // registration and persistence are handled here directly instead of via the "workspace-save"
   // hook main.ts's saveWorkspace patch fires.
-  createBlankWorkspace (): string {
-    let name = "New workspace";
-    for (let suffix = 2; this.workspacePlugin.workspaces[name]; suffix++) {
-      name = `New workspace ${suffix}`;
+  // `options.name` is used as-is (validated for collisions -- the caller is expected to have
+  // asked the user for it, e.g. NewWorkspaceModal); omitting it falls back to the old
+  // auto-numbered "New workspace" behavior the settings tab's "+" button relies on.
+  // Discriminated union (rather than a flat {success,name?,reason?}) so a caller can't destructure
+  // `name` without narrowing on `success` first -- TS would otherwise let that compile even though
+  // `name` only actually exists on the success branch.
+  createBlankWorkspace (
+    options?: { name?: string; icon?: string; iconColor?: string }
+  ): { success: true; name: string } | { success: false; reason: string } {
+    let name = options?.name?.trim();
+    if (name) {
+      if (this.workspacePlugin.workspaces[name]) {
+        return { success: false, reason: `A workspace named "${name}" already exists.` };
+      }
+    } else {
+      name = "New workspace";
+      for (let suffix = 2; this.workspacePlugin.workspaces[name]; suffix++) {
+        name = `New workspace ${suffix}`;
+      }
     }
     const leafId = generateLayoutNodeId();
     this.workspacePlugin.workspaces[name] = {
@@ -190,9 +205,14 @@ export default class Utils {
       },
       active: leafId,
     };
+    if (options?.icon || options?.iconColor) {
+      const workspaceSettings = this.getWorkspaceSettings(name);
+      if (options.icon) workspaceSettings.icon = options.icon;
+      if (options.iconColor) workspaceSettings.iconColor = options.iconColor;
+    }
     this.workspacePlugin.saveData();
     this.plugin.registerWorkspaceHotkeys();
-    return name;
+    return { success: true, name };
   }
 
   // Used by the settings tab's own "Delete this workspace" button -- the quick switcher's own
