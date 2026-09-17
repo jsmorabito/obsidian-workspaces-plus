@@ -63,7 +63,6 @@ export function buildWorkspaceIconSetting(
   setting.controlEl.prepend(previewEl);
   setting.addText(text => {
     text.inputEl.type = "text";
-    text.inputEl.parentElement?.addClass("search-input-container");
     text.setPlaceholder(DEFAULT_WORKSPACE_ICON);
     text.setValue(workspaceSettings.icon ?? "");
     new IconSuggest(app, text.inputEl);
