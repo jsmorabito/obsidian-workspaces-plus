@@ -4,7 +4,7 @@
 // class in settings.ts) purely so eslint.config.mjs's obsidianmd/no-unsupported-api override can
 // be scoped to just these 1.13.0+-only methods, instead of the whole settings.ts file -- that
 // keeps the check active for display() and the rest of the settings tab.
-import { PluginSettingTab } from "obsidian";
+import { Notice, PluginSettingTab } from "obsidian";
 import type { SettingDefinitionItem, SettingGroupItem, SettingDefinitionPage, Workspaces } from "obsidian";
 import type { WorkspacesPlusSettingsTab } from "./settings";
 import {
@@ -130,7 +130,22 @@ export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDe
         },
       ],
     },
-    { type: "group", heading: "Per workspace", items: workspacePages },
+    {
+      type: "group",
+      heading: "Per workspace",
+      extraButtons: [
+        button =>
+          button
+            .setIcon("plus")
+            .setTooltip("Create a new blank workspace")
+            .onClick(() => {
+              const name = tab.plugin.utils.createBlankWorkspace();
+              new Notice(`Created workspace "${name}" -- click it below to rename or configure it.`);
+              tab.update();
+            }),
+      ],
+      items: workspacePages,
+    },
     {
       type: "group",
       heading: "Per mode",

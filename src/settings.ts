@@ -515,7 +515,19 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
         })
       );
 
-    new Setting(containerEl).setName("Per workspace").setHeading();
+    new Setting(containerEl)
+      .setName("Per workspace")
+      .setHeading()
+      .addExtraButton(button =>
+        button
+          .setIcon("plus")
+          .setTooltip("Create a new blank workspace")
+          .onClick(() => {
+            const name = this.plugin.utils.createBlankWorkspace();
+            new Notice(`Created workspace "${name}" -- click it below to rename or configure it.`);
+            this.renderSettings();
+          })
+      );
 
     let { workspaces } = this.plugin.workspacePlugin;
     Object.entries(workspaces).forEach(entry => {
