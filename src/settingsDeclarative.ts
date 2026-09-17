@@ -133,7 +133,7 @@ export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDe
     },
     {
       type: "group",
-      heading: "Per workspace",
+      heading: "Workspaces",
       extraButtons: [
         button =>
           button
@@ -149,7 +149,7 @@ export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDe
     },
     {
       type: "group",
-      heading: "Per mode",
+      heading: "Modes",
       items: modePages,
       visible: () => tab.plugin.settings.workspaceSettings,
     },
