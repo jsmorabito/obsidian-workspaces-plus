@@ -45,6 +45,20 @@ function pathJoin (parts: string[], sep = "/"): string {
 export const RIBBON_KEY = "left-ribbon";
 const SIDEBAR_KEYS = ["left", "right"] as const;
 
+// Matches the shape (if not the exact alphabet) of the ids Obsidian itself generates for split
+// nodes and leaves -- these only ever need to be unique within the layout tree they're created
+// in, not to match Obsidian's own id format exactly.
+function generateLayoutNodeId (): string {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+// state/icon/title shapes lifted directly from a real vault's own workspaces.json for each core
+// view, so createBlankWorkspace()'s sidebar matches what Obsidian itself actually produces rather
+// than a guessed-at minimal version.
+function createSidebarLeaf (type: string, state: Record<string, unknown>, icon: string, title: string): WorkspaceLayoutNode {
+  return { id: generateLayoutNodeId(), type: "leaf", state: { type, state, icon, title } };
+}
+
 export default class Utils {
   SETTINGS_ATTR = "workspaces-plus:settings-v1";
   workspacePlugin: WorkspacePluginInstance;
@@ -108,6 +122,77 @@ export default class Utils {
     if (this.activeWorkspace === oldName) this.workspacePlugin.setActiveWorkspace(trimmed);
     this.app.workspace.trigger("workspace-rename", trimmed, oldName);
     return { success: true };
+  }
+
+  // Used by the "+" button on the settings tab's "Per workspace" heading. Obsidian's own
+  // saveWorkspace() always snapshots whatever layout is *currently on screen* -- there's no
+  // native "blank workspace" concept -- so a genuinely empty one has to be built by hand: an
+  // "empty" main leaf (Obsidian's own view type for a pane with nothing open in it, e.g. what you
+  // see after closing all tabs) plus a left sidebar with the Files/Bookmarks/Search core views,
+  // matching what a fresh vault normally looks like rather than a blank slate with no navigation
+  // at all. This never touches the user's actual current layout. Doesn't go through
+  // saveWorkspace() (would save the current layout, not a blank one), so hotkey/command
+  // registration and persistence are handled here directly instead of via the "workspace-save"
+  // hook main.ts's saveWorkspace patch fires.
+  createBlankWorkspace (): string {
+    let name = "New workspace";
+    for (let suffix = 2; this.workspacePlugin.workspaces[name]; suffix++) {
+      name = `New workspace ${suffix}`;
+    }
+    const leafId = generateLayoutNodeId();
+    this.workspacePlugin.workspaces[name] = {
+      main: {
+        id: generateLayoutNodeId(),
+        type: "split",
+        direction: "vertical",
+        children: [
+          {
+            id: generateLayoutNodeId(),
+            type: "tabs",
+            children: [{ id: leafId, type: "leaf", state: { type: "empty", state: {} } }],
+          },
+        ],
+      },
+      left: {
+        id: generateLayoutNodeId(),
+        type: "split",
+        direction: "horizontal",
+        width: 300,
+        children: [
+          {
+            id: generateLayoutNodeId(),
+            type: "tabs",
+            currentTab: 0,
+            children: [
+              createSidebarLeaf(
+                "file-explorer",
+                { sortOrder: "alphabetical", autoReveal: false, showSearch: false, searchQuery: "" },
+                "lucide-folder-closed",
+                "Files"
+              ),
+              createSidebarLeaf("bookmarks", { showSearch: false, searchQuery: "" }, "lucide-bookmark", "Bookmarks"),
+              createSidebarLeaf(
+                "search",
+                {
+                  query: "",
+                  matchingCase: false,
+                  explainSearch: false,
+                  collapseAll: false,
+                  extraContext: false,
+                  sortOrder: "alphabetical",
+                },
+                "lucide-search",
+                "Search"
+              ),
+            ],
+          },
+        ],
+      },
+      active: leafId,
+    };
+    this.workspacePlugin.saveData();
+    this.plugin.registerWorkspaceHotkeys();
+    return name;
   }
 
   get activeWorkspace () {
