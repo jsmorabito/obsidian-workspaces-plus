@@ -8,7 +8,7 @@ import {
   WorkspaceLeaf,
   Workspaces,
 } from "obsidian";
-import { WorkspacesPlusSettings, WorkspacesPlusSettingsTab, DEFAULT_SETTINGS } from "./settings";
+import { WorkspacesPlusSettings, WorkspacesPlusSettingsTab, DEFAULT_SETTINGS, DEFAULT_WORKSPACE_ICON } from "./settings";
 import { WorkspacesPlusPluginWorkspaceModal } from "./workspaceModal";
 import { WorkspacesPlusPluginModeModal } from "./modeModal";
 import { around } from "monkey-around";
@@ -226,6 +226,25 @@ export default class WorkspacesPlus extends Plugin {
     return this.statusBarWorkspace?.querySelector(".status-bar-item-segment.name");
   }
 
+  get changeWorkspaceIcon() {
+    return this.statusBarWorkspace?.querySelector<HTMLElement>(".status-bar-item-segment.icon");
+  }
+
+  // Off by default (see TOGGLE_TEXT.showWorkspaceIconInStatusBar in settings.ts): applies the
+  // active workspace's own icon/color over the plugin's default status bar icon when enabled,
+  // and restores the default otherwise. Called on toggle and whenever the active workspace
+  // changes (see setWorkspaceName).
+  updateStatusBarIcon(): void {
+    const iconEl = this.changeWorkspaceIcon;
+    if (!iconEl) return;
+    const workspaceSettings = this.settings.showWorkspaceIconInStatusBar
+      ? this.utils.getWorkspaceSettings(this.utils.activeWorkspace)
+      : null;
+    setIcon(iconEl, workspaceSettings?.icon || DEFAULT_WORKSPACE_ICON);
+    if (workspaceSettings?.iconColor) iconEl.style.color = workspaceSettings.iconColor;
+    else iconEl.style.removeProperty("color");
+  }
+
   get changeModeButton() {
     return this.statusBarMode?.querySelector(".status-bar-item-segment.name");
   }
@@ -338,6 +357,7 @@ export default class WorkspacesPlus extends Plugin {
     // create the status bar icon
     const icon = statusBarItem.createSpan("status-bar-item-segment icon");
     modalType == "workspace" ? setIcon(icon, "pane-layout") : setIcon(icon, "gear"); // inject svg icon
+    if (modalType == "workspace") this.updateStatusBarIcon(); // reflect the active workspace's own icon, if enabled
     // create the status bar text
     let modeText = this.utils.getActiveModeDisplayName();
     statusBarItem.createSpan({
@@ -374,6 +394,7 @@ export default class WorkspacesPlus extends Plugin {
         this.changeWorkspaceButton?.setText("Error: the workspaces core plugin is disabled");
       } else {
         this.changeWorkspaceButton?.setText(this.utils.activeWorkspace);
+        this.updateStatusBarIcon();
       }
       if (this.modesEnabled) this.changeModeButton?.setText(this.utils.getActiveModeDisplayName());
     },

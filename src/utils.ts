@@ -92,6 +92,24 @@ export default class Utils {
     return workspace[this.SETTINGS_ATTR] as WorkspaceCustomSettings;
   }
 
+  // Used by the settings tab's own rename control (see buildWorkspaceRenameSetting in
+  // settings.ts) -- the quick switcher's inline rename (workspaceModal.ts's handleRename) has its
+  // own separate, unit-tested implementation and isn't routed through this. Triggering
+  // "workspace-rename" here reuses the same event main.ts already listens for to reassign
+  // hotkeys/commands and persist the change, so both rename paths stay consistent.
+  renameWorkspace (oldName: string, newName: string): { success: boolean; reason?: string } {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) return { success: false };
+    if (this.workspacePlugin.workspaces[trimmed]) {
+      return { success: false, reason: `A workspace named "${trimmed}" already exists.` };
+    }
+    this.workspacePlugin.workspaces[trimmed] = this.workspacePlugin.workspaces[oldName];
+    delete this.workspacePlugin.workspaces[oldName];
+    if (this.activeWorkspace === oldName) this.workspacePlugin.setActiveWorkspace(trimmed);
+    this.app.workspace.trigger("workspace-rename", trimmed, oldName);
+    return { success: true };
+  }
+
   get activeWorkspace () {
     return this.workspacePlugin.activeWorkspace;
   }

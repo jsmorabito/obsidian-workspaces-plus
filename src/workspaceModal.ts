@@ -63,6 +63,9 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
     this.bgEl.parentElement.addClass("workspaces-plus-transparent-bg-important");
 
     this.modalEl.classList.add("workspaces-plus-modal");
+    // Off by default -- reserving left padding for an icon that's never shown would just be
+    // wasted space for anyone who hasn't turned this on.
+    if (this.settings.showWorkspaceIconInSwitcher) this.modalEl.classList.add("has-workspace-icons");
 
     // handle custom modal positioning when invoked via the status bar (desktop only --
     // the status bar is hidden on mobile, so there is no anchor to position against)
@@ -192,7 +195,7 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
         },
         {
           command: "ctrl ,",
-          purpose: "workspace settings",
+          purpose: "settings",
         },
         {
           command: "esc",
@@ -427,6 +430,7 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
   }
 
   addWorkspaceIcon(wrapperEl: HTMLElement, workspaceName: string): void {
+    if (!this.settings.showWorkspaceIconInSwitcher) return;
     let workspaceSettings: WorkspaceCustomSettings;
     try {
       workspaceSettings = this.workspacePlugin.workspaces[workspaceName][SETTINGS_ATTR] as WorkspaceCustomSettings;
