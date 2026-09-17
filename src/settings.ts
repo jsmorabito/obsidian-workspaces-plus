@@ -125,6 +125,7 @@ export function buildWorkspaceRenameSetting(
       }
       const result = plugin.utils.renameWorkspace(workspaceName, newName);
       if (result.success) {
+        new Notice(`Renamed workspace to "${newName.trim()}"`);
         onRenamed();
       } else {
         if (result.reason) new Notice(result.reason);
