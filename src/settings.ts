@@ -565,8 +565,12 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
           .setIcon("plus")
           .setTooltip("Create a new blank workspace")
           .onClick(() => {
-            const { name } = this.plugin.utils.createBlankWorkspace();
-            new Notice(`Created workspace "${name}" -- click it below to rename or configure it.`);
+            // No name option supplied, so this can't fail (see createBlankWorkspace's own
+            // comment) -- checked anyway since its return type no longer lets `name` be read
+            // without narrowing on `success` first.
+            const result = this.plugin.utils.createBlankWorkspace();
+            if (!result.success) return;
+            new Notice(`Created workspace "${result.name}" -- click it below to rename or configure it.`);
             this.renderSettings();
           })
       );

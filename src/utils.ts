@@ -137,7 +137,12 @@ export default class Utils {
   // `options.name` is used as-is (validated for collisions -- the caller is expected to have
   // asked the user for it, e.g. NewWorkspaceModal); omitting it falls back to the old
   // auto-numbered "New workspace" behavior the settings tab's "+" button relies on.
-  createBlankWorkspace (options?: { name?: string; icon?: string; iconColor?: string }): { success: boolean; name?: string; reason?: string } {
+  // Discriminated union (rather than a flat {success,name?,reason?}) so a caller can't destructure
+  // `name` without narrowing on `success` first -- TS would otherwise let that compile even though
+  // `name` only actually exists on the success branch.
+  createBlankWorkspace (
+    options?: { name?: string; icon?: string; iconColor?: string }
+  ): { success: true; name: string } | { success: false; reason: string } {
     let name = options?.name?.trim();
     if (name) {
       if (this.workspacePlugin.workspaces[name]) {

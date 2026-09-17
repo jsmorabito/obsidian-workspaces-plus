@@ -28,7 +28,11 @@ export class NewWorkspaceModal extends Modal {
     new Setting(this.contentEl).setName("Name").addText(text => {
       nameInputEl = text.inputEl;
       text.setPlaceholder("New workspace");
-      text.onChange(value => (this.name = value));
+      // Trimmed here (same as the icon field below) rather than left for createBlankWorkspace()
+      // to trim internally -- a whitespace-only value needs to read as empty *before* the
+      // `this.name || undefined` check in create(), or it's treated as a real name and silently
+      // swapped for the auto-generated default with no indication the typed name was rejected.
+      text.onChange(value => (this.name = value.trim()));
       text.inputEl.addEventListener("keydown", evt => {
         if (evt.key === "Enter") {
           evt.preventDefault();
@@ -91,7 +95,13 @@ export class NewWorkspaceModal extends Modal {
       icon: this.icon || undefined,
       iconColor: this.iconColor || undefined,
     });
-    if (!result.success) {
+    // `=== false`, not `!result.success` -- the latter fails to narrow the union here (though it
+    // narrows fine at the other two call sites of createBlankWorkspace, in settings.ts and
+    // settingsDeclarative.ts), leaving `result.reason` a type error. Likely this file's own,
+    // deeper circular-import chain (main.ts <-> newWorkspaceModal.ts <-> settingsDeclarative.ts
+    // <-> settings.ts, plus main.ts <-> utils.ts) confusing the checker; not worth chasing further
+    // since this form works reliably.
+    if (result.success === false) {
       new Notice(result.reason ?? "Could not create workspace.");
       return;
     }
