@@ -195,6 +195,22 @@ export default class Utils {
     return name;
   }
 
+  // Used by the settings tab's own "Delete this workspace" button -- the quick switcher's own
+  // delete (shift+delete / trash icon, workspaceModal.ts's doDelete) has its own separate flow and
+  // isn't routed through this. Deleting the active workspace doesn't itself do anything to
+  // Obsidian's "which workspace is active" pointer, which would otherwise keep naming a workspace
+  // that no longer exists -- switching to another remaining one avoids that.
+  deleteWorkspace (name: string): void {
+    const wasActive = this.activeWorkspace === name;
+    this.workspacePlugin.deleteWorkspace(name);
+    if (wasActive) {
+      const nextName = Object.keys(this.workspacePlugin.workspaces)
+        .filter(n => !this.isMode(n))
+        .sort()[0];
+      if (nextName) this.workspacePlugin.loadWorkspace(nextName);
+    }
+  }
+
   get activeWorkspace () {
     return this.workspacePlugin.activeWorkspace;
   }

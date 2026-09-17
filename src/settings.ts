@@ -12,6 +12,7 @@ import {
 } from "obsidian";
 import { FileSuggest } from "./suggesters/fileSuggest";
 import { IconSuggest } from "./suggesters/iconSuggest";
+import { createConfirmationDialog } from "./confirm";
 import {
   getSettingDefinitions as declarativeGetSettingDefinitions,
   getControlValue as declarativeGetControlValue,
@@ -140,6 +141,47 @@ export function buildWorkspaceRenameSetting(
       }
     });
   });
+}
+
+// Same sharing rationale as the icon/rename settings above. Always confirms (unlike the quick
+// switcher's own delete, which skips the prompt when showDeletePrompt is off) since this is a
+// deliberate settings-page action rather than a quick inline one, and warns specifically about
+// the active workspace since deleting it means Utils.deleteWorkspace() switches you to a
+// different one out from under you rather than leaving you on a now-nonexistent workspace.
+export function buildWorkspaceDeleteSetting(
+  setting: Setting,
+  plugin: WorkspacesPlus,
+  workspaceName: string,
+  onDeleted: () => void
+): void {
+  const isActive = plugin.utils.activeWorkspace === workspaceName;
+  setting
+    .setDesc(
+      isActive
+        ? "This cannot be undone. This is your current workspace, so deleting it will switch you to a different one."
+        : "This cannot be undone."
+    )
+    .addButton(button =>
+      button
+        .setButtonText("Delete")
+        // setDestructive() would need minAppVersion 1.13.0, above this plugin's actual minimum
+        // (1.8.7) -- setWarning() is deprecated in favor of it, but still the only destructive
+        // button styling available across that whole supported range.
+        .setWarning()
+        .onClick(() => {
+          createConfirmationDialog(plugin.app, {
+            cta: "Delete",
+            title: "Delete workspace",
+            text: isActive
+              ? `Delete the "${workspaceName}" workspace? This is your current workspace, so deleting it will switch you to a different one.`
+              : `Delete the "${workspaceName}" workspace? This cannot be undone.`,
+            onAccept: async () => {
+              plugin.utils.deleteWorkspace(workspaceName);
+              onDeleted();
+            },
+          });
+        })
+    );
 }
 
 // Shared name/desc text for the plugin's toggle settings, consumed by both display() (the
@@ -630,6 +672,10 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
             });
           });
       });
+
+      new Setting(subContainerEL)
+        .setName("Delete this workspace")
+        .then(setting => buildWorkspaceDeleteSetting(setting, this.plugin, workspaceName, () => this.renderSettings()));
     });
 
     new Setting(containerEl).setName("Per mode").setHeading().setClass("requires-workspace-modes");
