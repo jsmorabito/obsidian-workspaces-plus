@@ -11,7 +11,7 @@ import {
   Platform,
 } from "obsidian";
 import { createPopper, Instance as PopperInstance } from "@popperjs/core";
-import { WorkspacesPlusSettings } from "./settings";
+import { WorkspacesPlusSettings, DEFAULT_WORKSPACE_ICON } from "./settings";
 import { createConfirmationDialog } from "./confirm";
 import WorkspacesPlus from "./main";
 
@@ -409,6 +409,7 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
     const wrapperEl = existingEl ?? this.wrapSuggestion(el, resultEl);
     this.addDescription(wrapperEl, workspaceName);
     this.addBadge(wrapperEl, workspaceName);
+    this.addWorkspaceIcon(wrapperEl, workspaceName);
   }
 
   // Replaces the old hover-revealed rename/delete/platform icon row -- those are still reachable
@@ -423,6 +424,18 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
     if (!hotkeys?.length) return;
     const badgeEl = this.getRowEndEl(wrapperEl).createDiv("workspace-badge");
     badgeEl.textContent = formatHotkey(hotkeys[0]);
+  }
+
+  addWorkspaceIcon(wrapperEl: HTMLElement, workspaceName: string): void {
+    let workspaceSettings: WorkspaceCustomSettings;
+    try {
+      workspaceSettings = this.workspacePlugin.workspaces[workspaceName][SETTINGS_ATTR] as WorkspaceCustomSettings;
+    } catch {
+      // property chain may not exist yet, fall back to undefined
+    }
+    const iconEl = wrapperEl.createDiv("workspace-icon");
+    setIcon(iconEl, workspaceSettings?.icon || DEFAULT_WORKSPACE_ICON);
+    if (workspaceSettings?.iconColor) iconEl.style.color = workspaceSettings.iconColor;
   }
 
   wrapSuggestion(childEl: HTMLElement, parentEl: HTMLElement): HTMLElement {

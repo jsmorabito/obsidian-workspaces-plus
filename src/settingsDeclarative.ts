@@ -7,7 +7,14 @@
 import { PluginSettingTab } from "obsidian";
 import type { SettingDefinitionItem, SettingGroupItem, SettingDefinitionPage, Workspaces } from "obsidian";
 import type { WorkspacesPlusSettingsTab } from "./settings";
-import { TOGGLE_TEXT, WORKSPACE_BADGES_TEXT, WORKSPACE_BADGE_OPTIONS, getChildIds } from "./settings";
+import {
+  TOGGLE_TEXT,
+  WORKSPACE_BADGES_TEXT,
+  WORKSPACE_BADGE_OPTIONS,
+  getChildIds,
+  buildWorkspaceIconSetting,
+  buildWorkspaceIconColorSetting,
+} from "./settings";
 
 export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDefinitionItem[] {
   if (!tab.plugin.utils.isNativePluginEnabled) {
@@ -141,6 +148,9 @@ function buildWorkspacePage(
       },
     }));
 
+  const workspaceSettings = tab.plugin.utils.getWorkspaceSettings(workspaceName);
+  const onSave = () => tab.plugin.workspacePlugin.saveData();
+
   return {
     type: "page",
     name: workspaceName,
@@ -148,6 +158,15 @@ function buildWorkspacePage(
       {
         name: "Workspace description",
         control: { type: "text", key: `workspace-description:${encodeURIComponent(workspaceName)}` },
+      },
+      {
+        name: "Workspace icon",
+        desc: "Shown next to the workspace name in the quick switcher. Leave blank to use the default icon.",
+        render: setting => buildWorkspaceIconSetting(setting, tab.app, workspaceSettings, onSave),
+      },
+      {
+        name: "Workspace icon color",
+        render: setting => buildWorkspaceIconColorSetting(setting, workspaceSettings, onSave),
       },
       { type: "group", heading: "File overrides", items: overrides },
     ],
