@@ -14,6 +14,7 @@ import {
   getChildIds,
   buildWorkspaceIconSetting,
   buildWorkspaceIconColorSetting,
+  buildWorkspaceRenameSetting,
 } from "./settings";
 
 export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDefinitionItem[] {
@@ -48,6 +49,16 @@ export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDe
           name: TOGGLE_TEXT.showWorkspaceDescriptions.name,
           desc: TOGGLE_TEXT.showWorkspaceDescriptions.desc,
           control: { type: "toggle", key: "showWorkspaceDescriptions" },
+        },
+        {
+          name: TOGGLE_TEXT.showWorkspaceIconInSwitcher.name,
+          desc: TOGGLE_TEXT.showWorkspaceIconInSwitcher.desc,
+          control: { type: "toggle", key: "showWorkspaceIconInSwitcher" },
+        },
+        {
+          name: TOGGLE_TEXT.showWorkspaceIconInStatusBar.name,
+          desc: TOGGLE_TEXT.showWorkspaceIconInStatusBar.desc,
+          control: { type: "toggle", key: "showWorkspaceIconInStatusBar" },
         },
         {
           name: WORKSPACE_BADGES_TEXT.name,
@@ -156,6 +167,11 @@ function buildWorkspacePage(
     name: workspaceName,
     items: [
       {
+        name: "Workspace name",
+        desc: "Renaming here also reassigns any hotkey already set for this workspace.",
+        render: setting => buildWorkspaceRenameSetting(setting, tab.plugin, workspaceName, () => tab.update()),
+      },
+      {
         name: "Workspace description",
         control: { type: "text", key: `workspace-description:${encodeURIComponent(workspaceName)}` },
       },
@@ -255,6 +271,9 @@ export function setControlValue(tab: WorkspacesPlusSettingsTab, key: string, val
       break;
     case "modeSwitcherRibbon":
       tab.plugin.toggleModeRibbonButton();
+      break;
+    case "showWorkspaceIconInStatusBar":
+      tab.plugin.updateStatusBarIcon();
       break;
     case "workspaceSettings":
       if (value) tab.plugin.enableModesFeature();

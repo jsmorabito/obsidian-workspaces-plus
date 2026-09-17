@@ -48,12 +48,18 @@
 
 .workspace-results .workspace-description {
   font-size: 0.8em;
-  padding: 0px 7rem 0.6rem 2.5rem;
+  padding: 0px 7rem 0.6rem 1rem;
   color: var(--text-muted);
   line-height: 1;
   width: 100%;
   /* removing max-width since it messes up the selected item background */
   /* max-width: 40em; */
+}
+
+/* Icon is off by default (see the "Show workspace icon in quick switcher" setting) -- only widen
+   the left inset to make room for it when it's actually showing. */
+.has-workspace-icons .workspace-results .workspace-description {
+  padding-left: 2.5rem;
 }
 
 /* Holds the active-workspace checkmark and the hotkey/number badge together as one Linear-style
@@ -123,12 +129,16 @@ body.is-mobile .workspace-item {
 .workspace-item {
   display: inline-block;
   width: 100%;
-  padding: 5px 7rem 5px 2.5rem;
+  padding: 5px 7rem 5px 1rem;
   font-size: 16px;
   position: relative;
   cursor: pointer;
   white-space: normal;
   border: 1px solid transparent;
+}
+
+.has-workspace-icons .workspace-item {
+  padding-left: 2.5rem;
 }
 
 .workspaces-plus-color-scheme-icon > svg {
