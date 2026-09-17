@@ -12,6 +12,24 @@ interface ToggleText {
   desc?: string;
 }
 
+// What to display next to each workspace in the quick switcher: its assigned custom hotkey
+// (addresses issue #116) or a Linear-style position number (1-9) that can be pressed to jump
+// straight to that workspace. Kept mutually exclusive -- rendering both at once would make it
+// unclear whether a badge indicates the workspace's real hotkey or just its list position, and a
+// custom hotkey (e.g. Alt+1) has no relationship to the position-based number a user might expect
+// to press for that same row.
+export type WorkspaceBadgeMode = "hotkey" | "number";
+
+export const WORKSPACE_BADGE_OPTIONS: Record<WorkspaceBadgeMode, string> = {
+  hotkey: "Custom hotkeys",
+  number: "Number keys (1-9)",
+};
+
+export const WORKSPACE_BADGES_TEXT: ToggleText = {
+  name: "Workspace switcher badges",
+  desc: "Show each workspace's assigned hotkey, or a number (1-9) you can press to jump straight to it.",
+};
+
 // Shared name/desc text for the plugin's toggle settings, consumed by both display() (the
 // pre-1.13.0 fallback) and getSettingDefinitions() (the 1.13.0+ declarative UI) so the two
 // separately-structured implementations can't silently drift apart on wording. Keyed by the
@@ -26,6 +44,10 @@ export const TOGGLE_TEXT: Record<string, ToggleText> = {
   showDeletePrompt: {
     name: "Show workspace delete confirmation",
     desc: "Show a confirmation prompt on workspace deletion",
+  },
+  showWorkspaceDescriptions: {
+    name: "Show workspace descriptions in switcher",
+    desc: "Show each workspace's description (set under Per workspace below) beneath its name in the quick switcher.",
   },
   workspaceSwitcherRibbon: { name: "Show workspace sidebar ribbon icon" },
   replaceNativeRibbon: { name: "Hide the native workspace sidebar ribbon icon" },
@@ -82,6 +104,8 @@ export const TOGGLE_TEXT: Record<string, ToggleText> = {
 export class WorkspacesPlusSettings {
   showInstructions: boolean;
   showDeletePrompt: boolean;
+  showWorkspaceDescriptions: boolean;
+  workspaceBadges: WorkspaceBadgeMode;
   saveOnSwitch: boolean;
   saveOnChange: boolean;
   workspaceSettings: boolean;
@@ -102,6 +126,8 @@ export class WorkspacesPlusSettings {
 export const DEFAULT_SETTINGS: WorkspacesPlusSettings = {
   showInstructions: true,
   showDeletePrompt: true,
+  showWorkspaceDescriptions: false,
+  workspaceBadges: "hotkey",
   saveOnSwitch: false,
   saveOnChange: false,
   workspaceSettings: false,
@@ -173,6 +199,29 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
           this.plugin.settings.showDeletePrompt = value;
           void this.plugin.saveData(this.plugin.settings);
         })
+      );
+
+    new Setting(containerEl)
+      .setName(TOGGLE_TEXT.showWorkspaceDescriptions.name)
+      .setDesc(TOGGLE_TEXT.showWorkspaceDescriptions.desc)
+      .addToggle(toggle =>
+        toggle.setValue(this.plugin.settings.showWorkspaceDescriptions).onChange(value => {
+          this.plugin.settings.showWorkspaceDescriptions = value;
+          void this.plugin.saveData(this.plugin.settings);
+        })
+      );
+
+    new Setting(containerEl)
+      .setName(WORKSPACE_BADGES_TEXT.name)
+      .setDesc(WORKSPACE_BADGES_TEXT.desc)
+      .addDropdown(dropdown =>
+        dropdown
+          .addOptions(WORKSPACE_BADGE_OPTIONS)
+          .setValue(this.plugin.settings.workspaceBadges)
+          .onChange(value => {
+            this.plugin.settings.workspaceBadges = value as WorkspaceBadgeMode;
+            void this.plugin.saveData(this.plugin.settings);
+          })
       );
 
     new Setting(containerEl)

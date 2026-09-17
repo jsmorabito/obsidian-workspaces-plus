@@ -46,18 +46,9 @@
   border-radius: 0.2em;
 }
 
-.workspace-results .rename-workspace {
-  display: inline-block;
-  position: absolute;
-  right: 2em;
-  margin-top: 0.5em;
-  fill: var(--text-muted);
-  opacity: 0;
-}
-
 .workspace-results .workspace-description {
   font-size: 0.8em;
-  padding: 0px 6rem 0.6rem 2rem;
+  padding: 0px 7rem 0.6rem 1rem;
   color: var(--text-muted);
   line-height: 1;
   width: 100%;
@@ -65,42 +56,38 @@
   /* max-width: 40em; */
 }
 
-.workspace-results .delete-workspace {
-  display: inline-block;
+/* Holds the active-workspace checkmark and the hotkey/number badge together as one Linear-style
+   cluster (checkmark, then badge), right-aligned and vertically centered on the row regardless of
+   the row's height -- e.g. a row with a description below the name is taller, but this still sits
+   centered on the row rather than pinned to the top or falling into flow after the description. */
+.workspace-results .workspace-row-end {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
   position: absolute;
-  right: 0.7em;
-  margin-top: 0.5em;
-  fill: var(--text-muted);
-  opacity: 0;
+  right: 1em;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
-.workspace-results .platform {
-  display: inline-block;
-  position: absolute;
-  right: 3.3em;
-  margin-top: 0.4em;
+.workspace-row-end .active-workspace {
+  display: inline-flex;
   fill: var(--text-muted);
+}
+
+/* Sits where the old hover-revealed rename/delete/platform icons used to -- unlike those, it's
+   informational (like Obsidian's own command-palette hotkey hints) so it stays visible without a
+   hover, and it never has to compete with them for the same space. */
+.workspace-row-end .workspace-badge {
+  display: inline-block;
+  padding: 0.05em 0.5em;
+  font-size: 0.75em;
+  line-height: 1.4;
+  text-align: center;
   color: var(--text-muted);
-  opacity: 0;
-}
-
-.active-workspace {
-  display: inline-block;
-  position: absolute;
-  left: 0.5em;
-  margin-top: 0.5em;
-  fill: var(--text-muted);
-  z-index: 2;
-}
-
-.rename-workspace,
-.delete-workspace {
-  cursor: pointer;
-}
-
-.rename-workspace:hover,
-.delete-workspace:hover {
-  fill: var(--text-accent-hover);
+  background-color: var(--background-modifier-hover);
+  border-radius: 0.3em;
+  white-space: nowrap;
 }
 
 .workspace-results {
@@ -108,61 +95,18 @@
   position: relative;
 }
 
-.prompt-results:not(.renaming) .workspace-item.is-selected ~ .rename-workspace,
-.prompt-results:not(.renaming) .workspace-item.is-selected ~ .delete-workspace,
-.prompt-results:not(.renaming) .workspace-item.is-selected ~ .platform {
-  opacity: 1;
-}
-
-body.is-mobile .prompt-results:not(.renaming) .workspace-item ~ .rename-workspace,
-body.is-mobile .prompt-results:not(.renaming) .workspace-item ~ .delete-workspace,
-body.is-mobile .prompt-results:not(.renaming) .workspace-item ~ .platform {
-  opacity: 1;
-}
-
-/* Mobile: no hover, so give the always-visible row actions real touch targets
-   and space them apart. Extra right padding on the row/description keeps the
-   workspace name clear of the enlarged icons. */
+/* Mobile: no hover, so give the row itself a real touch target. Rename/delete are keyboard-only
+   now (ctrl ↵ / shift ⌫) or via this plugin's settings tab, so there's no icon row to make room
+   for here beyond the badge, which already has its own comfortable padding. */
 body.is-mobile .workspace-item {
   padding-top: 11px;
   padding-bottom: 11px;
-  padding-right: 8.5rem;
-}
-
-body.is-mobile .workspace-results .workspace-description {
-  padding-right: 8.5rem;
-}
-
-body.is-mobile .workspace-results .rename-workspace,
-body.is-mobile .workspace-results .delete-workspace,
-body.is-mobile .workspace-results .platform {
-  padding: 7px;
-  margin-top: 0.15em;
-}
-
-body.is-mobile .workspace-results .delete-workspace {
-  right: 0.15em;
-}
-
-body.is-mobile .workspace-results .rename-workspace {
-  right: 2.7em;
-}
-
-body.is-mobile .workspace-results .platform {
-  right: 5.25em;
-}
-
-body.is-mobile .workspace-results .rename-workspace svg,
-body.is-mobile .workspace-results .delete-workspace svg,
-body.is-mobile .workspace-results .platform svg {
-  width: 20px;
-  height: 20px;
 }
 
 .workspace-item {
   display: inline-block;
   width: 100%;
-  padding: 5px 6rem 5px 2rem;
+  padding: 5px 7rem 5px 1rem;
   font-size: 16px;
   position: relative;
   cursor: pointer;
