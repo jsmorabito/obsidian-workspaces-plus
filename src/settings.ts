@@ -237,6 +237,10 @@ export const TOGGLE_TEXT: Record<string, ToggleText> = {
     name: "Preserve sidebar layout across workspaces",
     desc: "Keep the current left and right sidebar panes, their arrangement, and view state when switching workspaces instead of loading each workspace's saved sidebar layout.",
   },
+  scrollPositionRestoration: {
+    name: "Scroll position restoration",
+    desc: "Remember and restore individual PDF and Markdown reading positions for each workspace, including source mode, Live Preview, and reading mode.",
+  },
   trackOpenFiles: {
     name: "Automatically track and restore open files",
     desc:
@@ -281,6 +285,7 @@ export class WorkspacesPlusSettings {
   workspaceSwitcherRibbon: boolean;
   modeSwitcherRibbon: boolean;
   replaceNativeRibbon: boolean;
+  scrollPositionRestoration: boolean;
   trackOpenFiles: boolean;
   preserveRibbon: boolean;
   preserveSidebarLayout: boolean;
@@ -305,6 +310,7 @@ export const DEFAULT_SETTINGS: WorkspacesPlusSettings = {
   workspaceSwitcherRibbon: false,
   modeSwitcherRibbon: false,
   replaceNativeRibbon: false,
+  scrollPositionRestoration: false,
   trackOpenFiles: true,
   preserveRibbon: false,
   preserveSidebarLayout: false,
@@ -492,6 +498,17 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
         toggle.setValue(this.plugin.settings.saveOnChange).onChange(value => {
           this.plugin.settings.saveOnChange = value;
           void this.plugin.saveData(this.plugin.settings);
+        })
+      );
+
+    new Setting(containerEl)
+      .setName(TOGGLE_TEXT.scrollPositionRestoration.name)
+      .setDesc(TOGGLE_TEXT.scrollPositionRestoration.desc)
+      .addToggle(toggle =>
+        toggle.setValue(this.plugin.settings.scrollPositionRestoration).onChange(value => {
+          this.plugin.settings.scrollPositionRestoration = value;
+          void this.plugin.scrollPosition.configure();
+          void this.plugin.saveSettings();
         })
       );
 

@@ -46,6 +46,7 @@ const stubs = {
   "./workspaceModal": { WorkspacesPlusPluginWorkspaceModal: class {} },
   "./modeModal": { WorkspacesPlusPluginModeModal: class {} },
   "./newWorkspaceModal": { NewWorkspaceModal: class {} },
+  "./scrollPosition/manager": { ScrollPositionManager: class {} },
   "./utils": { default: class {} },
   "monkey-around": { around: () => noop },
   "./workspaceCycle": { cycleWorkspace: noop },
@@ -123,6 +124,13 @@ const loadWith = async (isMobile, savedData) => {
       assert.strictEqual(s.saveOnChange, true);
       assert.strictEqual(s.activeWorkspaceDesktop, "Work");
       assert.strictEqual(s.showInstructions, true); // untouched default preserved
+    });
+
+    await check(`${plat} migrates the earlier scroll toggle without overriding the new setting`, async () => {
+      const migrated = await loadWith(isMobile, { smartScrollRestoration: true });
+      assert.strictEqual(migrated.scrollPositionRestoration, true);
+      assert.strictEqual("smartScrollRestoration" in migrated, false);
+      assert.strictEqual((await loadWith(isMobile, { smartScrollRestoration: true, scrollPositionRestoration: false })).scrollPositionRestoration, false);
     });
 
     await check(`${plat} never forces workspaceSwitcherRibbon on`, async () => {

@@ -34,6 +34,15 @@ Workspaces Plus is a plugin that expands the functionality of [workspaces](https
 - cycle to the next workspace
 - save the current workspace and cycle to the next workspace
 
+### Scroll position restoration
+
+Enable **Settings → Workspaces Plus → Scroll position restoration** to remember PDF and Markdown reading positions independently for each workspace and tab. The option is off by default. The same file can have different positions in different workspaces, including duplicate tabs within a workspace.
+
+- **PDFs:** remember the page, position within the page, and zoom mode. PDF document coordinates preserve the reading point when workspaces use different pane sizes. Restoration waits for the viewer to initialize.
+- **Markdown:** restore positions in source mode, Live Preview, and reading mode using source-line positions. Hashed line/context anchors help relocate the reading position when text is inserted above it; missing or ambiguous anchors fall back to the saved source position.
+
+Positions survive Obsidian restarts in `scroll-positions.json`, separately from plugin settings and saved workspace layouts. No note text is persisted, no data is sent to external services, and no document-height percentages are used. Manual input cancels pending restoration. PDF restoration uses isolated private Obsidian/PDF.js APIs, so compatibility may need checking after Obsidian updates. Browser tabs are not handled by this feature.
+
 ### Plugin Options
 
 - Toggle keyboard shortcuts on/off for Workspace Picker

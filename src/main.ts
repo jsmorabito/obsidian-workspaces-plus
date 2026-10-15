@@ -14,9 +14,11 @@ import { WorkspacesPlusPluginModeModal } from "./modeModal";
 import { NewWorkspaceModal } from "./newWorkspaceModal";
 import { around } from "monkey-around";
 import Utils from "./utils";
+import { ScrollPositionManager } from "./scrollPosition/manager";
 import { cycleWorkspace as runWorkspaceCycle } from "./workspaceCycle";
 
 export default class WorkspacesPlus extends Plugin {
+  scrollPosition: ScrollPositionManager;
   settings: WorkspacesPlusSettings;
   workspacePlugin: WorkspacePluginInstance;
   debug: boolean;
@@ -48,6 +50,9 @@ export default class WorkspacesPlus extends Plugin {
     this.utils = new Utils(this);
     this.workspacePlugin = this.utils.workspacePlugin;
     this.isNativePluginEnabled = this.utils.isNativePluginEnabled;
+    this.scrollPosition = new ScrollPositionManager(this);
+    await this.scrollPosition.load();
+    this.scrollPosition.start();
     this.installWorkspaceHooks();
     this.registerEvent(
       this.app.internalPlugins.on("change", plugin => {
@@ -80,6 +85,7 @@ export default class WorkspacesPlus extends Plugin {
       // persist) an empty app.vault.config.
       if (this.modesEnabled) this.storeGlobalSettings();
       this.setPlatformWorkspace();
+      if (!this.startupWorkspaceLoadTriggered) void this.scrollPosition.activate(this.workspacePlugin.activeWorkspace);
 
       this.backupCoreConfig();
 
@@ -116,6 +122,7 @@ export default class WorkspacesPlus extends Plugin {
   }
 
   onunload(): void {
+    this.scrollPosition?.shutdown();
     if (this.modesEnabled) {
       let combinedSettings = this.mergeGlobalSettings();
       this.applySettings(combinedSettings);
@@ -128,7 +135,13 @@ export default class WorkspacesPlus extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, (await this.loadData()) as Partial<WorkspacesPlusSettings>);
+    const saved = (await this.loadData()) as Partial<WorkspacesPlusSettings> & { smartScrollRestoration?: boolean };
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, saved);
+    // Preserve the toggle from earlier builds under its new, descriptive name.
+    if (saved?.scrollPositionRestoration === undefined && typeof saved?.smartScrollRestoration === "boolean") {
+      this.settings.scrollPositionRestoration = saved.smartScrollRestoration;
+    }
+    delete (this.settings as WorkspacesPlusSettings & { smartScrollRestoration?: boolean }).smartScrollRestoration;
   }
 
   async saveSettings() {
@@ -463,6 +476,7 @@ export default class WorkspacesPlus extends Plugin {
   }
 
   onWorkspaceRename = (name: string, oldName: string) => {
+    this.scrollPosition?.rename(oldName, name);
     this.setWorkspaceName();
     // remove the old command
     this.app.commands.removeCommand(`${this.manifest.id}:${oldName}`);
@@ -492,6 +506,7 @@ export default class WorkspacesPlus extends Plugin {
   }
 
   onWorkspaceDelete = (workspaceName: string) => {
+    this.scrollPosition?.remove(workspaceName);
     this.setWorkspaceName();
     const id = this.manifest.id + ":" + workspaceName;
     this.app.commands.removeCommand(id);
@@ -697,6 +712,7 @@ export default class WorkspacesPlus extends Plugin {
             } else {
               const workspace = this.workspaces[workspaceName];
               if (workspace) {
+                const scrollCapture = plugin.scrollPosition?.beginSwitch() ?? Promise.resolve();
                 this.activeWorkspace = workspaceName;
                 // Guards against a rapid second switch superseding this one while its restore
                 // chain is still in flight (see the generation checks below).
@@ -720,6 +736,7 @@ export default class WorkspacesPlus extends Plugin {
                   .then(async () => {
                     // A newer switch started while restore was running -- applying this
                     // (now-stale) layout would revert the user's screen back to it.
+                    await scrollCapture;
                     if (generation !== plugin.workspaceLoadGeneration) return;
                     // Captured here, right before use, rather than at the top of loadWorkspace --
                     // the restore chain above can await real file I/O, and grabbing the ribbon
@@ -760,7 +777,10 @@ export default class WorkspacesPlus extends Plugin {
                             })
                         )
                     );
-                    if (generation === plugin.workspaceLoadGeneration) this.saveData();
+                    if (generation === plugin.workspaceLoadGeneration) {
+                      this.saveData();
+                      void plugin.scrollPosition?.activate(workspaceName);
+                    }
                   })
                   .catch((e: unknown) => {
                     console.error("failed to apply workspace layout:", e);
