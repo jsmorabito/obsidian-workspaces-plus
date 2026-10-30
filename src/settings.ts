@@ -37,6 +37,13 @@ export const WORKSPACE_BADGE_OPTIONS: Record<WorkspaceBadgeMode, string> = {
   number: "Number keys (1-9)",
 };
 
+// Per-workspace toggle (stored in WorkspaceCustomSettings.keepActiveFile), shared between
+// display() and buildWorkspacePage() for the same no-drift reason as TOGGLE_TEXT below.
+export const KEEP_ACTIVE_FILE_TEXT: ToggleText = {
+  name: "Keep the current file open when loading this workspace",
+  desc: "Reopen the file you were on in the main pane after this workspace's layout is applied, instead of the file saved with the layout.",
+};
+
 export const WORKSPACE_BADGES_TEXT: ToggleText = {
   name: "Workspace switcher badges",
   desc: "Show each workspace's assigned hotkey, or a number (1-9) you can press to jump straight to it.",
@@ -632,6 +639,17 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       new Setting(subContainerEL)
         .setName("Workspace icon color")
         .then(setting => buildWorkspaceIconColorSetting(setting, workspaceSettings, () => this.plugin.workspacePlugin.saveData()));
+
+      new Setting(subContainerEL)
+        .setName(KEEP_ACTIVE_FILE_TEXT.name)
+        .setDesc(KEEP_ACTIVE_FILE_TEXT.desc)
+        .addToggle(toggle =>
+          toggle.setValue(workspaceSettings?.keepActiveFile ?? false).onChange(value => {
+            if (value) workspaceSettings.keepActiveFile = true;
+            else delete workspaceSettings.keepActiveFile;
+            this.plugin.workspacePlugin.saveData();
+          })
+        );
 
       // new Setting(containerEl)
       //   .setName(`Auto save workspace on changes (not yet implemented)`)
