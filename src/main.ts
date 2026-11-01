@@ -292,7 +292,9 @@ export default class WorkspacesPlus extends Plugin {
     if (!this.vaultSwitcherIcon) {
       this.vaultSwitcherIcon = createSpan("clickable-icon");
       this.vaultSwitcherIcon.setAttribute("aria-label", "Switch workspace");
-      this.vaultSwitcherIcon.setAttribute("aria-label-position", "top");
+      // See the matching comment in addStatusBarIndicator() -- data-tooltip-position, not
+      // aria-label-position, is what Obsidian's tooltip engine actually reads for placement.
+      this.vaultSwitcherIcon.setAttribute("data-tooltip-position", "top");
       this.registerDomEvent(this.vaultSwitcherIcon, "click", () =>
         new WorkspacesPlusPluginWorkspaceModal(this, this.settings, true).open()
       );
@@ -431,7 +433,11 @@ export default class WorkspacesPlus extends Plugin {
 
     statusBarItem.addClass(`${modalType}-switcher`);
     statusBarItem.setAttribute("aria-label", `Switch ${modalType}`);
-    statusBarItem.setAttribute("aria-label-position", "top");
+    // Obsidian's tooltip engine reads data-tooltip-position, not aria-label-position (that name
+    // isn't consulted anywhere in its tooltip code) -- without it the tooltip defaults to
+    // "bottom" placement, which has nowhere to go below a status bar item sitting at the very
+    // bottom of the window, so it gets clamped back up on top of (covering) the item itself.
+    statusBarItem.setAttribute("data-tooltip-position", "top");
     // create the status bar icon
     const icon = statusBarItem.createSpan("status-bar-item-segment icon");
     modalType == "workspace" ? setIcon(icon, "pane-layout") : setIcon(icon, "gear"); // inject svg icon
