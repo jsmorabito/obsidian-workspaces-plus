@@ -79,6 +79,11 @@ export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDe
           visible: () => !tab.plugin.app.isMobile,
         },
         {
+          name: TOGGLE_TEXT.workspaceSwitcherStatusBar.name,
+          desc: TOGGLE_TEXT.workspaceSwitcherStatusBar.desc,
+          control: { type: "toggle", key: "workspaceSwitcherStatusBar" },
+        },
+        {
           name: WORKSPACE_BADGES_TEXT.name,
           desc: WORKSPACE_BADGES_TEXT.desc,
           control: { type: "dropdown", key: "workspaceBadges", options: WORKSPACE_BADGE_OPTIONS },
@@ -317,6 +322,9 @@ export function setControlValue(tab: WorkspacesPlusSettingsTab, key: string, val
   void PluginSettingTab.prototype.setControlValue.call(tab, key, value);
 
   switch (key) {
+    case "workspaceSwitcherStatusBar":
+      tab.plugin.toggleWorkspaceStatusBarItem();
+      break;
     case "workspaceSwitcherRibbon":
       tab.plugin.toggleWorkspaceRibbonButton();
       break;

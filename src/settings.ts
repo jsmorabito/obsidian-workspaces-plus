@@ -233,6 +233,12 @@ export const TOGGLE_TEXT: Record<string, ToggleText> = {
       "switcher at the bottom of the sidebar, styled like the help and settings buttons beside it. Click it to open the " +
       "workspace switcher.",
   },
+  workspaceSwitcherStatusBar: {
+    name: "Show workspace switcher in status bar",
+    desc:
+      "Show the active workspace's name in the status bar, with a click to open the workspace switcher. On desktop, " +
+      "you can turn this off if you're using the vault switcher icon setting instead.",
+  },
   workspaceSwitcherRibbon: { name: "Show workspace sidebar ribbon icon" },
   replaceNativeRibbon: { name: "Hide the native workspace sidebar ribbon icon" },
   modeSwitcherRibbon: { name: "Show workspace mode sidebar ribbon icon" },
@@ -301,6 +307,7 @@ export class WorkspacesPlusSettings {
   activeWorkspaceDesktop: string;
   activeWorkspaceMobile: string;
   reloadLivePreview: boolean;
+  workspaceSwitcherStatusBar: boolean;
   workspaceSwitcherRibbon: boolean;
   modeSwitcherRibbon: boolean;
   replaceNativeRibbon: boolean;
@@ -331,6 +338,7 @@ export const DEFAULT_SETTINGS: WorkspacesPlusSettings = {
   activeWorkspaceDesktop: "",
   activeWorkspaceMobile: "",
   reloadLivePreview: false,
+  workspaceSwitcherStatusBar: true,
   workspaceSwitcherRibbon: false,
   modeSwitcherRibbon: false,
   replaceNativeRibbon: false,
@@ -448,6 +456,17 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
           })
         );
     }
+
+    new Setting(containerEl)
+      .setName(TOGGLE_TEXT.workspaceSwitcherStatusBar.name)
+      .setDesc(TOGGLE_TEXT.workspaceSwitcherStatusBar.desc)
+      .addToggle(toggle =>
+        toggle.setValue(this.plugin.settings.workspaceSwitcherStatusBar).onChange(value => {
+          this.plugin.settings.workspaceSwitcherStatusBar = value;
+          void this.plugin.saveData(this.plugin.settings);
+          this.plugin.toggleWorkspaceStatusBarItem();
+        })
+      );
 
     new Setting(containerEl)
       .setName(WORKSPACE_BADGES_TEXT.name)

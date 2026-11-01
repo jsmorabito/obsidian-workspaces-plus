@@ -91,7 +91,7 @@ export default class WorkspacesPlus extends Plugin {
       window.setTimeout(() => {
         this.registerWorkspaceHotkeys();
         this.setWorkspaceAttribute();
-        this.addStatusBarIndicator.apply(this);
+        if (this.settings.workspaceSwitcherStatusBar) this.addStatusBarIndicator.apply(this);
         this.updateVaultSwitcherIcon();
         this.maybeAnnounceVaultSwitcherIcon();
         if (this.modesEnabled) this.enableModesFeature();
@@ -423,6 +423,22 @@ export default class WorkspacesPlus extends Plugin {
     this.statusBarMode?.detach();
     this.statusBarMode = null;
     this.app.commands.removeCommand(`${this.manifest.id}:"open-workspaces-plus-modes"`);
+  }
+
+  // On by default (see TOGGLE_TEXT.workspaceSwitcherStatusBar in settings.ts): toggles the
+  // workspace switcher status bar item -- now optional since the vault switcher icon above
+  // offers an alternative entry point. Reuses the same item (created once, via
+  // addStatusBarIndicator(), which no-ops if it already exists) across toggles instead of
+  // detaching and recreating it, for the same reason updateVaultSwitcherIcon() above does:
+  // avoids re-registering its click listener every time. Only affects the "workspace" item, not
+  // the separate "mode" one enableModesFeature() manages.
+  toggleWorkspaceStatusBarItem(): void {
+    if (this.settings.workspaceSwitcherStatusBar) {
+      this.addStatusBarIndicator("workspace");
+      this.statusBarWorkspace?.show();
+    } else {
+      this.statusBarWorkspace?.hide();
+    }
   }
 
   addStatusBarIndicator(modalType: string = "workspace") {
