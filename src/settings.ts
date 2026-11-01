@@ -51,6 +51,21 @@ export const DEFAULT_WORKSPACE_ICON = "pane-layout";
 // workspace's settings on its own; only picking a color (or resetting away from one) does that.
 export const DEFAULT_ICON_COLOR_SWATCH = "#888888";
 
+// Applies a workspace's custom icon (falling back to fallbackIcon when unset) and its custom
+// color (clearing back to the app's default when unset) to an element -- shared by every place in
+// the plugin that renders a workspace's icon onto an existing/persistent element (the status bar
+// segment and vault switcher button in main.ts, the quick switcher row in workspaceModal.ts) so
+// the same two-line sequence isn't hand-copied at each call site.
+export function applyWorkspaceIcon(
+  el: HTMLElement,
+  workspaceSettings: WorkspaceCustomSettings | null | undefined,
+  fallbackIcon: string = DEFAULT_WORKSPACE_ICON
+): void {
+  setIcon(el, workspaceSettings?.icon || fallbackIcon);
+  if (workspaceSettings?.iconColor) el.style.color = workspaceSettings.iconColor;
+  else el.style.removeProperty("color");
+}
+
 // Builds the "Workspace icon" control (a text field with icon-name autocomplete, plus a live
 // preview) shared between display() (pre-1.13.0) and getSettingDefinitions()'s render callback
 // (1.13.0+), so the two can't drift the way two independently hand-rolled UIs would.
@@ -211,6 +226,13 @@ export const TOGGLE_TEXT: Record<string, ToggleText> = {
     name: "Show workspace icon in status bar",
     desc: "Show the active workspace's icon (set under Per workspace below) in place of the default icon in the status bar.",
   },
+  showWorkspaceIconNextToVaultSwitcher: {
+    name: "Show workspace icon next to vault switcher",
+    desc:
+      "Show the active workspace's icon (set under Per workspace below, or the default icon if unset) next to the vault " +
+      "switcher at the bottom of the sidebar, styled like the help and settings buttons beside it. Click it to open the " +
+      "workspace switcher.",
+  },
   workspaceSwitcherRibbon: { name: "Show workspace sidebar ribbon icon" },
   replaceNativeRibbon: { name: "Hide the native workspace sidebar ribbon icon" },
   modeSwitcherRibbon: { name: "Show workspace mode sidebar ribbon icon" },
@@ -269,6 +291,7 @@ export class WorkspacesPlusSettings {
   showWorkspaceDescriptions: boolean;
   showWorkspaceIconInSwitcher: boolean;
   showWorkspaceIconInStatusBar: boolean;
+  showWorkspaceIconNextToVaultSwitcher: boolean;
   workspaceBadges: WorkspaceBadgeMode;
   saveOnSwitch: boolean;
   saveOnChange: boolean;
@@ -285,6 +308,11 @@ export class WorkspacesPlusSettings {
   preserveRibbon: boolean;
   preserveSidebarLayout: boolean;
   restoreLayoutOnStartup: boolean;
+  // Internal, not shown in the settings tab -- set true the first time the plugin shows (or
+  // skips, for a fresh install/mobile) the one-time "new feature" notice about the vault
+  // switcher icon, so it's never shown more than once. See
+  // WorkspacesPlus.maybeAnnounceVaultSwitcherIcon() in main.ts.
+  hasSeenVaultSwitcherIconNotice: boolean;
 }
 
 export const DEFAULT_SETTINGS: WorkspacesPlusSettings = {
@@ -293,6 +321,7 @@ export const DEFAULT_SETTINGS: WorkspacesPlusSettings = {
   showWorkspaceDescriptions: false,
   showWorkspaceIconInSwitcher: false,
   showWorkspaceIconInStatusBar: false,
+  showWorkspaceIconNextToVaultSwitcher: false,
   workspaceBadges: "hotkey",
   saveOnSwitch: false,
   saveOnChange: false,
@@ -309,6 +338,7 @@ export const DEFAULT_SETTINGS: WorkspacesPlusSettings = {
   preserveRibbon: false,
   preserveSidebarLayout: false,
   restoreLayoutOnStartup: false,
+  hasSeenVaultSwitcherIconNotice: false,
 };
 
 interface ChildLeafSummary {
@@ -405,6 +435,19 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
           this.plugin.updateStatusBarIcon();
         })
       );
+
+    if (!this.plugin.app.isMobile) {
+      new Setting(containerEl)
+        .setName(TOGGLE_TEXT.showWorkspaceIconNextToVaultSwitcher.name)
+        .setDesc(TOGGLE_TEXT.showWorkspaceIconNextToVaultSwitcher.desc)
+        .addToggle(toggle =>
+          toggle.setValue(this.plugin.settings.showWorkspaceIconNextToVaultSwitcher).onChange(value => {
+            this.plugin.settings.showWorkspaceIconNextToVaultSwitcher = value;
+            void this.plugin.saveData(this.plugin.settings);
+            this.plugin.updateVaultSwitcherIcon();
+          })
+        );
+    }
 
     new Setting(containerEl)
       .setName(WORKSPACE_BADGES_TEXT.name)

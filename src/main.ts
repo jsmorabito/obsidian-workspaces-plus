@@ -8,7 +8,7 @@ import {
   WorkspaceLeaf,
   Workspaces,
 } from "obsidian";
-import { WorkspacesPlusSettings, WorkspacesPlusSettingsTab, DEFAULT_SETTINGS, DEFAULT_WORKSPACE_ICON } from "./settings";
+import { WorkspacesPlusSettings, WorkspacesPlusSettingsTab, DEFAULT_SETTINGS, applyWorkspaceIcon } from "./settings";
 import { WorkspacesPlusPluginWorkspaceModal } from "./workspaceModal";
 import { WorkspacesPlusPluginModeModal } from "./modeModal";
 import { NewWorkspaceModal } from "./newWorkspaceModal";
@@ -23,6 +23,7 @@ export default class WorkspacesPlus extends Plugin {
   workspaceLoading: boolean;
   statusBarWorkspace: HTMLElement;
   statusBarMode: HTMLElement;
+  vaultSwitcherIcon: HTMLElement;
   ribbonIconMode: HTMLElement;
   ribbonIconWorkspaces: HTMLElement;
   nativeWorkspaceRibbonItem: HTMLElement;
@@ -40,6 +41,10 @@ export default class WorkspacesPlus extends Plugin {
   // recognize it's been superseded by a newer workspace switch and bail out instead of
   // re-applying a stale layout or persisting stale data over the newer switch.
   private workspaceLoadGeneration = 0;
+  // Set by loadSettings() from whether loadData() returned anything -- distinguishes "never used
+  // this plugin before" from "already has settings, just hasn't seen a given one-time notice yet"
+  // for maybeAnnounceVaultSwitcherIcon() below.
+  private isFreshInstall = false;
 
   async onload() {
     this.debug = false;
@@ -87,6 +92,8 @@ export default class WorkspacesPlus extends Plugin {
         this.registerWorkspaceHotkeys();
         this.setWorkspaceAttribute();
         this.addStatusBarIndicator.apply(this);
+        this.updateVaultSwitcherIcon();
+        this.maybeAnnounceVaultSwitcherIcon();
         if (this.modesEnabled) this.enableModesFeature();
         if (this.settings.workspaceSwitcherRibbon) {
           this.toggleWorkspaceRibbonButton();
@@ -122,13 +129,16 @@ export default class WorkspacesPlus extends Plugin {
     }
     delete document.body.dataset.workspaceMode;
     delete document.body.dataset.workspaceName;
+    this.vaultSwitcherIcon?.remove();
     if (this.settings.replaceNativeRibbon && this.nativeWorkspaceRibbonItem) {
       this.nativeWorkspaceRibbonItem.show();
     }
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, (await this.loadData()) as Partial<WorkspacesPlusSettings>);
+    const savedData = (await this.loadData()) as Partial<WorkspacesPlusSettings> | null;
+    this.isFreshInstall = savedData === null;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, savedData);
   }
 
   async saveSettings() {
@@ -251,9 +261,66 @@ export default class WorkspacesPlus extends Plugin {
     const workspaceSettings = this.settings.showWorkspaceIconInStatusBar
       ? this.utils.getWorkspaceSettings(this.utils.activeWorkspace)
       : null;
-    setIcon(iconEl, workspaceSettings?.icon || DEFAULT_WORKSPACE_ICON);
-    if (workspaceSettings?.iconColor) iconEl.style.color = workspaceSettings.iconColor;
-    else iconEl.style.removeProperty("color");
+    applyWorkspaceIcon(iconEl, workspaceSettings);
+  }
+
+  // Off by default (see TOGGLE_TEXT.showWorkspaceIconNextToVaultSwitcher in settings.ts): adds a
+  // clickable-icon button -- styled like Obsidian's own help/settings buttons beside it, and
+  // opening the same workspace switcher as those buttons' own commands -- to the vault switcher
+  // at the bottom of the left sidebar, showing the active workspace's own icon/color (falling
+  // back to the plugin's default icon, same as updateStatusBarIcon() above, when the active
+  // workspace has no custom icon set, so the button never disappears once the setting is on).
+  // That row only exists on desktop (mobile uses a different, non-persistent vault chooser),
+  // hence the isMobile guard.
+  //
+  // The button element (and its click listener, registered once via registerDomEvent so unload
+  // cleans it up per the project's own DOM-listener convention) is created at most once per
+  // plugin load and kept around in this.vaultSwitcherIcon even while detached -- re-registering
+  // a listener on a brand-new element every call here would otherwise leak one registerDomEvent
+  // entry per workspace switch, since those are only ever cleaned up in bulk on unload, not
+  // individually. Loading a workspace's saved layout rebuilds the whole workspace tree --
+  // including the left sidedock this button lives in -- which detaches it from the document, so
+  // isConnected (not plain truthiness) is what decides whether to re-insert it into the freshly
+  // rebuilt container. Called on toggle and whenever the active workspace changes (see
+  // setWorkspaceName).
+  updateVaultSwitcherIcon(): void {
+    if (this.app.isMobile) return;
+    if (!this.settings.showWorkspaceIconNextToVaultSwitcher) {
+      this.vaultSwitcherIcon?.remove();
+      return;
+    }
+    if (!this.vaultSwitcherIcon) {
+      this.vaultSwitcherIcon = createSpan("clickable-icon");
+      this.vaultSwitcherIcon.setAttribute("aria-label", "Switch workspace");
+      this.vaultSwitcherIcon.setAttribute("aria-label-position", "top");
+      this.registerDomEvent(this.vaultSwitcherIcon, "click", () =>
+        new WorkspacesPlusPluginWorkspaceModal(this, this.settings, true).open()
+      );
+    }
+    if (!this.vaultSwitcherIcon.isConnected) {
+      const actionsEl = document.body.querySelector<HTMLElement>(".workspace-drawer-vault-actions");
+      if (!actionsEl) return; // retried again next time setWorkspaceName fires
+      actionsEl.prepend(this.vaultSwitcherIcon);
+    }
+    applyWorkspaceIcon(this.vaultSwitcherIcon, this.utils.getWorkspaceSettings(this.utils.activeWorkspace));
+  }
+
+  // Shows a single, one-time Notice the first time an *existing* install loads after upgrading
+  // to a version with the vault switcher icon feature above, so users who'd otherwise never
+  // open Settings notice it's there. Skipped (but still marked seen, so it can never fire later)
+  // for a fresh install -- nothing to announce to someone who's never used an older version --
+  // and for mobile, where the feature itself is inert (see updateVaultSwitcherIcon()'s isMobile
+  // guard) and pointing users at a setting that doesn't even appear there would be confusing.
+  maybeAnnounceVaultSwitcherIcon(): void {
+    if (this.settings.hasSeenVaultSwitcherIconNotice) return;
+    this.settings.hasSeenVaultSwitcherIconNotice = true;
+    void this.saveData(this.settings);
+    if (this.isFreshInstall || this.app.isMobile) return;
+    new Notice(
+      "Workspaces Plus: you can now show your active workspace's icon next to the vault switcher -- enable it under " +
+        "Settings → Workspaces Plus.",
+      10000
+    );
   }
 
   get changeModeButton() {
@@ -406,6 +473,7 @@ export default class WorkspacesPlus extends Plugin {
       } else {
         this.changeWorkspaceButton?.setText(this.utils.activeWorkspace);
         this.updateStatusBarIcon();
+        this.updateVaultSwitcherIcon();
       }
       if (this.modesEnabled) this.changeModeButton?.setText(this.utils.getActiveModeDisplayName());
     },

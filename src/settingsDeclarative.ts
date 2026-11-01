@@ -73,6 +73,12 @@ export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDe
           control: { type: "toggle", key: "showWorkspaceIconInStatusBar" },
         },
         {
+          name: TOGGLE_TEXT.showWorkspaceIconNextToVaultSwitcher.name,
+          desc: TOGGLE_TEXT.showWorkspaceIconNextToVaultSwitcher.desc,
+          control: { type: "toggle", key: "showWorkspaceIconNextToVaultSwitcher" },
+          visible: () => !tab.plugin.app.isMobile,
+        },
+        {
           name: WORKSPACE_BADGES_TEXT.name,
           desc: WORKSPACE_BADGES_TEXT.desc,
           control: { type: "dropdown", key: "workspaceBadges", options: WORKSPACE_BADGE_OPTIONS },
@@ -322,6 +328,9 @@ export function setControlValue(tab: WorkspacesPlusSettingsTab, key: string, val
       break;
     case "showWorkspaceIconInStatusBar":
       tab.plugin.updateStatusBarIcon();
+      break;
+    case "showWorkspaceIconNextToVaultSwitcher":
+      tab.plugin.updateVaultSwitcherIcon();
       break;
     case "workspaceSettings":
       if (value) tab.plugin.enableModesFeature();

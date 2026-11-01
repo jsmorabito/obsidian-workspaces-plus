@@ -11,7 +11,7 @@ import {
   Platform,
 } from "obsidian";
 import { createPopper, Instance as PopperInstance } from "@popperjs/core";
-import { WorkspacesPlusSettings, DEFAULT_WORKSPACE_ICON } from "./settings";
+import { WorkspacesPlusSettings, applyWorkspaceIcon } from "./settings";
 import { createConfirmationDialog } from "./confirm";
 import WorkspacesPlus from "./main";
 
@@ -438,8 +438,7 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
       // property chain may not exist yet, fall back to undefined
     }
     const iconEl = wrapperEl.createDiv("workspace-icon");
-    setIcon(iconEl, workspaceSettings?.icon || DEFAULT_WORKSPACE_ICON);
-    if (workspaceSettings?.iconColor) iconEl.style.color = workspaceSettings.iconColor;
+    applyWorkspaceIcon(iconEl, workspaceSettings);
   }
 
   wrapSuggestion(childEl: HTMLElement, parentEl: HTMLElement): HTMLElement {
