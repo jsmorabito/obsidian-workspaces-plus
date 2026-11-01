@@ -42,6 +42,25 @@ export const WORKSPACE_BADGES_TEXT: ToggleText = {
   desc: "Show each workspace's assigned hotkey, or a number (1-9) you can press to jump straight to it.",
 };
 
+// Where the workspace switcher ribbon icon (TOGGLE_TEXT.workspaceSwitcherRibbon below) is placed.
+// "main" uses Obsidian's own addRibbonIcon() API, which stacks it with every other plugin's
+// ribbon icons. "bottom" instead renders it into the ribbon's own .side-dock-settings element --
+// a separate container Obsidian already pins to the bottom of the ribbon via CSS (margin-top:
+// auto) -- so it reads as a distinct, standalone button rather than one more icon in that stack.
+// addRibbonIcon() has no public option for the latter, hence toggleWorkspaceRibbonButton()'s
+// manual DOM handling in main.ts for that case.
+export type WorkspaceRibbonLocation = "main" | "bottom";
+
+export const WORKSPACE_RIBBON_LOCATION_OPTIONS: Record<WorkspaceRibbonLocation, string> = {
+  main: "With other ribbon icons",
+  bottom: "Pinned to the bottom, on its own",
+};
+
+export const WORKSPACE_RIBBON_LOCATION_TEXT: ToggleText = {
+  name: "Ribbon button location",
+  desc: "Where to place the workspace switcher ribbon button (enabled above).",
+};
+
 // Falls back to this plugin's own existing default workspace icon (used for the status bar
 // segment in main.ts) when a workspace has no custom icon set, so an unconfigured workspace looks
 // the same in the switcher as it always has elsewhere in the plugin.
@@ -158,11 +177,11 @@ export function buildWorkspaceRenameSetting(
   });
 }
 
-// Same sharing rationale as the icon/rename settings above. Always confirms (unlike the quick
-// switcher's own delete, which skips the prompt when showDeletePrompt is off) since this is a
-// deliberate settings-page action rather than a quick inline one, and warns specifically about
-// the active workspace since deleting it means Utils.deleteWorkspace() switches you to a
-// different one out from under you rather than leaving you on a now-nonexistent workspace.
+// Same sharing rationale as the icon/rename settings above. Always confirms, like every other
+// delete path in the plugin (see deleteWorkspace() in workspaceModal.ts/modeModal.ts), and warns
+// specifically about the active workspace since deleting it means Utils.deleteWorkspace()
+// switches you to a different one out from under you rather than leaving you on a
+// now-nonexistent workspace.
 export function buildWorkspaceDeleteSetting(
   setting: Setting,
   plugin: WorkspacesPlus,
@@ -209,10 +228,6 @@ export const TOGGLE_TEXT: Record<string, ToggleText> = {
   showInstructions: {
     name: "Show instructions",
     desc: "Show available keyboard shortcuts at the bottom of the workspace quick switcher",
-  },
-  showDeletePrompt: {
-    name: "Show workspace delete confirmation",
-    desc: "Show a confirmation prompt on workspace deletion",
   },
   showWorkspaceDescriptions: {
     name: "Show workspace descriptions in switcher",
@@ -293,7 +308,6 @@ export const TOGGLE_TEXT: Record<string, ToggleText> = {
 
 export class WorkspacesPlusSettings {
   showInstructions: boolean;
-  showDeletePrompt: boolean;
   showWorkspaceDescriptions: boolean;
   showWorkspaceIconInSwitcher: boolean;
   showWorkspaceIconInStatusBar: boolean;
@@ -309,6 +323,7 @@ export class WorkspacesPlusSettings {
   reloadLivePreview: boolean;
   workspaceSwitcherStatusBar: boolean;
   workspaceSwitcherRibbon: boolean;
+  workspaceSwitcherRibbonLocation: WorkspaceRibbonLocation;
   modeSwitcherRibbon: boolean;
   replaceNativeRibbon: boolean;
   trackOpenFiles: boolean;
@@ -324,7 +339,6 @@ export class WorkspacesPlusSettings {
 
 export const DEFAULT_SETTINGS: WorkspacesPlusSettings = {
   showInstructions: true,
-  showDeletePrompt: true,
   showWorkspaceDescriptions: false,
   showWorkspaceIconInSwitcher: false,
   showWorkspaceIconInStatusBar: false,
@@ -340,6 +354,7 @@ export const DEFAULT_SETTINGS: WorkspacesPlusSettings = {
   reloadLivePreview: false,
   workspaceSwitcherStatusBar: true,
   workspaceSwitcherRibbon: false,
+  workspaceSwitcherRibbonLocation: "main",
   modeSwitcherRibbon: false,
   replaceNativeRibbon: false,
   trackOpenFiles: true,
@@ -399,16 +414,6 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.showInstructions).onChange(value => {
           this.plugin.settings.showInstructions = value;
-          void this.plugin.saveData(this.plugin.settings);
-        })
-      );
-
-    new Setting(containerEl)
-      .setName(TOGGLE_TEXT.showDeletePrompt.name)
-      .setDesc(TOGGLE_TEXT.showDeletePrompt.desc)
-      .addToggle(toggle =>
-        toggle.setValue(this.plugin.settings.showDeletePrompt).onChange(value => {
-          this.plugin.settings.showDeletePrompt = value;
           void this.plugin.saveData(this.plugin.settings);
         })
       );
@@ -483,12 +488,35 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName(TOGGLE_TEXT.workspaceSwitcherRibbon.name)
-      .addToggle(toggle =>
-        toggle.setValue(this.plugin.settings.workspaceSwitcherRibbon).onChange(value => {
-          this.plugin.settings.workspaceSwitcherRibbon = value;
-          void this.plugin.saveData(this.plugin.settings);
-          this.plugin.toggleWorkspaceRibbonButton();
-        })
+      .then(setting => {
+        // Same requires-X pattern as the "Workspace Modes" toggle below: marks this as the
+        // parent of a dependent setting (the ribbon location dropdown just below), so
+        // styles.css can hide that dropdown via a sibling selector while this is off.
+        setting.settingEl.addClass("workspace-switcher-ribbon");
+        setting.settingEl.toggleClass("is-enabled", this.plugin.settings.workspaceSwitcherRibbon);
+        setting.addToggle(toggle =>
+          toggle.setValue(this.plugin.settings.workspaceSwitcherRibbon).onChange(value => {
+            setting.settingEl.toggleClass("is-enabled", value);
+            this.plugin.settings.workspaceSwitcherRibbon = value;
+            void this.plugin.saveData(this.plugin.settings);
+            this.plugin.toggleWorkspaceRibbonButton();
+          })
+        );
+      });
+
+    new Setting(containerEl)
+      .setName(WORKSPACE_RIBBON_LOCATION_TEXT.name)
+      .setDesc(WORKSPACE_RIBBON_LOCATION_TEXT.desc)
+      .setClass("requires-workspace-switcher-ribbon")
+      .addDropdown(dropdown =>
+        dropdown
+          .addOptions(WORKSPACE_RIBBON_LOCATION_OPTIONS)
+          .setValue(this.plugin.settings.workspaceSwitcherRibbonLocation)
+          .onChange(value => {
+            this.plugin.settings.workspaceSwitcherRibbonLocation = value as WorkspaceRibbonLocation;
+            void this.plugin.saveData(this.plugin.settings);
+            this.plugin.toggleWorkspaceRibbonButton();
+          })
       );
 
     new Setting(containerEl)

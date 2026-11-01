@@ -385,18 +385,14 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
       let currentSelection = this.chooser.selectedItem;
       workspaceName = this.chooser.values[currentSelection].item;
     }
-    if (this.settings.showDeletePrompt) {
-      createConfirmationDialog(this.app, {
-        cta: "Delete",
-        onAccept: async () => {
-          this.doDelete(workspaceName);
-        },
-        text: `Do you really want to delete the '` + workspaceName + `' workspace?`,
-        title: "Workspace Delete Confirmation",
-      });
-    } else {
-      this.doDelete(workspaceName);
-    }
+    createConfirmationDialog(this.app, {
+      cta: "Delete",
+      onAccept: async () => {
+        this.doDelete(workspaceName);
+      },
+      text: `Do you really want to delete the '` + workspaceName + `' workspace?`,
+      title: "Workspace Delete Confirmation",
+    });
   }
 
   renderSuggestion(item: FuzzyMatch<string>, el: HTMLElement): void {

@@ -205,6 +205,10 @@ body.is-mobile .side-dock-actions div[aria-label="Manage modes"] svg {
   display: none;
 }
 
+.workspace-switcher-ribbon:not(.is-enabled) ~ .requires-workspace-switcher-ribbon {
+  display: none;
+}
+
 .setting-item.file-override .setting-item-control .search-input-container {
   margin-bottom: 0;
   margin-right: 0;

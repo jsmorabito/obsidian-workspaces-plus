@@ -15,7 +15,11 @@ const ts = require("typescript");
 // --- real DEFAULT_SETTINGS (kept in sync with src/settings.ts) ---------------
 const DEFAULT_SETTINGS = {
   showInstructions: true,
-  showDeletePrompt: true,
+  showWorkspaceDescriptions: false,
+  showWorkspaceIconInSwitcher: false,
+  showWorkspaceIconInStatusBar: false,
+  showWorkspaceIconNextToVaultSwitcher: false,
+  workspaceBadges: "hotkey",
   saveOnSwitch: false,
   saveOnChange: false,
   workspaceSettings: false,
@@ -24,13 +28,16 @@ const DEFAULT_SETTINGS = {
   activeWorkspaceDesktop: "",
   activeWorkspaceMobile: "",
   reloadLivePreview: false,
+  workspaceSwitcherStatusBar: true,
   workspaceSwitcherRibbon: false,
+  workspaceSwitcherRibbonLocation: "main",
   modeSwitcherRibbon: false,
   replaceNativeRibbon: false,
   trackOpenFiles: true,
   preserveRibbon: false,
   preserveSidebarLayout: false,
   restoreLayoutOnStartup: false,
+  hasSeenVaultSwitcherIconNotice: false,
 };
 
 // --- load main.ts with stubbed imports -------------------------------------

@@ -11,6 +11,8 @@ import {
   TOGGLE_TEXT,
   WORKSPACE_BADGES_TEXT,
   WORKSPACE_BADGE_OPTIONS,
+  WORKSPACE_RIBBON_LOCATION_TEXT,
+  WORKSPACE_RIBBON_LOCATION_OPTIONS,
   getChildIds,
   buildWorkspaceIconSetting,
   buildWorkspaceIconColorSetting,
@@ -53,11 +55,6 @@ export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDe
           control: { type: "toggle", key: "showInstructions" },
         },
         {
-          name: TOGGLE_TEXT.showDeletePrompt.name,
-          desc: TOGGLE_TEXT.showDeletePrompt.desc,
-          control: { type: "toggle", key: "showDeletePrompt" },
-        },
-        {
           name: TOGGLE_TEXT.showWorkspaceDescriptions.name,
           desc: TOGGLE_TEXT.showWorkspaceDescriptions.desc,
           control: { type: "toggle", key: "showWorkspaceDescriptions" },
@@ -91,6 +88,12 @@ export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDe
         {
           name: TOGGLE_TEXT.workspaceSwitcherRibbon.name,
           control: { type: "toggle", key: "workspaceSwitcherRibbon" },
+        },
+        {
+          name: WORKSPACE_RIBBON_LOCATION_TEXT.name,
+          desc: WORKSPACE_RIBBON_LOCATION_TEXT.desc,
+          control: { type: "dropdown", key: "workspaceSwitcherRibbonLocation", options: WORKSPACE_RIBBON_LOCATION_OPTIONS },
+          visible: () => tab.plugin.settings.workspaceSwitcherRibbon,
         },
         {
           name: TOGGLE_TEXT.replaceNativeRibbon.name,
@@ -326,6 +329,7 @@ export function setControlValue(tab: WorkspacesPlusSettingsTab, key: string, val
       tab.plugin.toggleWorkspaceStatusBarItem();
       break;
     case "workspaceSwitcherRibbon":
+    case "workspaceSwitcherRibbonLocation":
       tab.plugin.toggleWorkspaceRibbonButton();
       break;
     case "replaceNativeRibbon":

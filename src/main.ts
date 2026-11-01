@@ -2,6 +2,7 @@ import {
   Plugin,
   WorkspacePluginInstance,
   setIcon,
+  setTooltip,
   Notice,
   debounce,
   WorkspaceCustomSettings,
@@ -26,6 +27,7 @@ export default class WorkspacesPlus extends Plugin {
   vaultSwitcherIcon: HTMLElement;
   ribbonIconMode: HTMLElement;
   ribbonIconWorkspaces: HTMLElement;
+  bottomRibbonIconWorkspaces: HTMLElement;
   nativeWorkspaceRibbonItem: HTMLElement;
   isNativePluginEnabled: boolean;
   utils: Utils;
@@ -130,6 +132,7 @@ export default class WorkspacesPlus extends Plugin {
     delete document.body.dataset.workspaceMode;
     delete document.body.dataset.workspaceName;
     this.vaultSwitcherIcon?.remove();
+    this.bottomRibbonIconWorkspaces?.remove();
     if (this.settings.replaceNativeRibbon && this.nativeWorkspaceRibbonItem) {
       this.nativeWorkspaceRibbonItem.show();
     }
@@ -365,8 +368,14 @@ export default class WorkspacesPlus extends Plugin {
     }
   }
 
+  // See TOGGLE_TEXT.workspaceSwitcherRibbon / WORKSPACE_RIBBON_LOCATION_TEXT in settings.ts: the
+  // ribbon button (off by default) can sit either with the rest of the ribbon's icons (the
+  // "main" location, Obsidian's standard addRibbonIcon() placement) or pinned to the bottom of
+  // the ribbon by itself (updateBottomRibbonWorkspaceButton() below) -- mutually exclusive, so
+  // switching location hides whichever one isn't selected rather than showing both.
   toggleWorkspaceRibbonButton(): void {
-    if (this.settings.workspaceSwitcherRibbon) {
+    const wantMain = this.settings.workspaceSwitcherRibbon && this.settings.workspaceSwitcherRibbonLocation !== "bottom";
+    if (wantMain) {
       if (!this.ribbonIconWorkspaces) {
         this.ribbonIconWorkspaces = this.addRibbonIcon("pane-layout", "Manage workspaces", async () =>
           new WorkspacesPlusPluginWorkspaceModal(this, this.settings, true).open()
@@ -376,6 +385,41 @@ export default class WorkspacesPlus extends Plugin {
     } else {
       this.ribbonIconWorkspaces?.hide();
     }
+
+    const wantBottom = this.settings.workspaceSwitcherRibbon && this.settings.workspaceSwitcherRibbonLocation === "bottom";
+    if (wantBottom) {
+      this.updateBottomRibbonWorkspaceButton();
+    } else {
+      this.bottomRibbonIconWorkspaces?.hide();
+    }
+  }
+
+  // addRibbonIcon() only ever appends into the ribbon's main, scrollable icon stack -- there's no
+  // public option to place an icon in the ribbon's own .side-dock-settings element instead, the
+  // separate container Obsidian pins to the bottom of the ribbon via CSS (margin-top: auto),
+  // normally reserved for things like a "hide ribbon" control. This replicates Obsidian's own
+  // ribbon button markup (createDiv("clickable-icon side-dock-ribbon-action"), setIcon(), and
+  // setTooltip() with the same {placement: "right"} ribbon buttons use) by hand to render into
+  // that container instead. Created (and its click listener registered, via registerDomEvent)
+  // at most once per plugin load, then just re-inserted whenever it's detached -- same reasoning
+  // as updateVaultSwitcherIcon() above: re-registering a listener on a fresh element every call
+  // would leak one registerDomEvent entry per call, since those are only cleaned up in bulk on
+  // unload, not individually.
+  updateBottomRibbonWorkspaceButton(): void {
+    if (!this.bottomRibbonIconWorkspaces) {
+      this.bottomRibbonIconWorkspaces = createDiv("clickable-icon side-dock-ribbon-action");
+      setIcon(this.bottomRibbonIconWorkspaces, "pane-layout");
+      setTooltip(this.bottomRibbonIconWorkspaces, "Manage workspaces", { placement: "right" });
+      this.registerDomEvent(this.bottomRibbonIconWorkspaces, "click", () =>
+        new WorkspacesPlusPluginWorkspaceModal(this, this.settings, true).open()
+      );
+    }
+    if (!this.bottomRibbonIconWorkspaces.isConnected) {
+      const settingsEl = document.body.querySelector<HTMLElement>(".side-dock-settings");
+      if (!settingsEl) return; // retried again next time toggleWorkspaceRibbonButton() runs
+      settingsEl.appendChild(this.bottomRibbonIconWorkspaces);
+    }
+    this.bottomRibbonIconWorkspaces.show();
   }
   toggleModeRibbonButton(): void {
     if (this.modesEnabled && this.settings.modeSwitcherRibbon) {
