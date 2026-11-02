@@ -262,7 +262,7 @@ export default class WorkspacesPlus extends Plugin {
     const iconEl = this.changeWorkspaceIcon;
     if (!iconEl) return;
     const workspaceSettings = this.settings.showWorkspaceIconInStatusBar
-      ? this.utils.getWorkspaceSettings(this.utils.activeWorkspace)
+      ? this.utils.activeWorkspaceSettings()
       : null;
     applyWorkspaceIcon(iconEl, workspaceSettings);
   }
@@ -307,7 +307,7 @@ export default class WorkspacesPlus extends Plugin {
       if (!actionsEl) return; // retried again next time setWorkspaceName fires
       actionsEl.prepend(this.vaultSwitcherIcon);
     }
-    applyWorkspaceIcon(this.vaultSwitcherIcon, this.utils.getWorkspaceSettings(this.utils.activeWorkspace));
+    applyWorkspaceIcon(this.vaultSwitcherIcon, this.utils.activeWorkspaceSettings());
   }
 
   // Shows a single, one-time Notice the first time an *existing* install loads after upgrading
@@ -372,7 +372,10 @@ export default class WorkspacesPlus extends Plugin {
   // ribbon button (off by default) can sit either with the rest of the ribbon's icons (the
   // "main" location, Obsidian's standard addRibbonIcon() placement) or pinned to the bottom of
   // the ribbon by itself (updateBottomRibbonWorkspaceButton() below) -- mutually exclusive, so
-  // switching location hides whichever one isn't selected rather than showing both.
+  // switching location hides whichever one isn't selected rather than showing both. Also called
+  // whenever the active workspace changes (see setWorkspaceName) so the icon stays current, the
+  // same way updateVaultSwitcherIcon() does for the vault switcher button -- falling back to the
+  // plugin's default icon when the active workspace has no custom icon set.
   toggleWorkspaceRibbonButton(): void {
     const wantMain = this.settings.workspaceSwitcherRibbon && this.settings.workspaceSwitcherRibbonLocation !== "bottom";
     if (wantMain) {
@@ -381,6 +384,7 @@ export default class WorkspacesPlus extends Plugin {
           new WorkspacesPlusPluginWorkspaceModal(this, this.settings, true).open()
         );
       }
+      applyWorkspaceIcon(this.ribbonIconWorkspaces, this.utils.activeWorkspaceSettings());
       this.ribbonIconWorkspaces?.show();
     } else {
       this.ribbonIconWorkspaces?.hide();
@@ -404,11 +408,12 @@ export default class WorkspacesPlus extends Plugin {
   // at most once per plugin load, then just re-inserted whenever it's detached -- same reasoning
   // as updateVaultSwitcherIcon() above: re-registering a listener on a fresh element every call
   // would leak one registerDomEvent entry per call, since those are only cleaned up in bulk on
-  // unload, not individually.
+  // unload, not individually. Also re-applies the active workspace's own icon/color (falling back
+  // to the plugin's default icon when unset) every call, the same way updateVaultSwitcherIcon()
+  // does, so it stays current as the active workspace changes (see setWorkspaceName).
   updateBottomRibbonWorkspaceButton(): void {
     if (!this.bottomRibbonIconWorkspaces) {
       this.bottomRibbonIconWorkspaces = createDiv("clickable-icon side-dock-ribbon-action");
-      setIcon(this.bottomRibbonIconWorkspaces, "pane-layout");
       setTooltip(this.bottomRibbonIconWorkspaces, "Manage workspaces", { placement: "right" });
       this.registerDomEvent(this.bottomRibbonIconWorkspaces, "click", () =>
         new WorkspacesPlusPluginWorkspaceModal(this, this.settings, true).open()
@@ -419,6 +424,7 @@ export default class WorkspacesPlus extends Plugin {
       if (!settingsEl) return; // retried again next time toggleWorkspaceRibbonButton() runs
       settingsEl.appendChild(this.bottomRibbonIconWorkspaces);
     }
+    applyWorkspaceIcon(this.bottomRibbonIconWorkspaces, this.utils.activeWorkspaceSettings());
     this.bottomRibbonIconWorkspaces.show();
   }
   toggleModeRibbonButton(): void {
@@ -540,6 +546,7 @@ export default class WorkspacesPlus extends Plugin {
         this.changeWorkspaceButton?.setText(this.utils.activeWorkspace);
         this.updateStatusBarIcon();
         this.updateVaultSwitcherIcon();
+        this.toggleWorkspaceRibbonButton();
       }
       if (this.modesEnabled) this.changeModeButton?.setText(this.utils.getActiveModeDisplayName());
     },
