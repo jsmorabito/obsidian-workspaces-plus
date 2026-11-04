@@ -273,18 +273,19 @@ export default class Utils {
       workspaceSettings && (workspaceSettings.mode = modeName);
     }
     // load the mode's sidebar layouts, if enabled
+    let layoutChanged: Promise<void>;
     if (modeSettings?.saveSidebar && workspaceSettings.mode) {
       // The mode has its own explicit, per-mode sidebar choice -- a more specific setting
       // than the global preserveSidebarLayout toggle, so it should win rather than be
       // silently overwritten by whatever sidebar happens to be on screen.
-      mode && this.mergeSidebarLayout(mode, { skipSidebarPreserve: true });
+      if (mode) layoutChanged = this.mergeSidebarLayout(mode, { skipSidebarPreserve: true });
       this.updateFoldState(modeSettings);
     } else {
-      workspace && this.mergeSidebarLayout(workspace);
+      if (workspace) layoutChanged = this.mergeSidebarLayout(workspace);
       this.updateFoldState(workspaceSettings);
     }
     this.workspacePlugin.saveData(); // call saveData on the workspace plugin to persist the workspace metadata to disk
-    return true;
+    return layoutChanged;
   }
 
   setChildId (split: WorkspaceLayoutNode, leafId: string, fileName: string): boolean {
@@ -458,7 +459,7 @@ export default class Utils {
     if (this.plugin.settings.preserveSidebarLayout && !skipSidebarPreserve) {
       layoutToApply = this.preserveSidebarInLayout(layoutToApply, currentLayout);
     }
-    void workspace.changeLayout(layoutToApply);
+    return workspace.changeLayout(layoutToApply);
   }
 
   // Returns the number of real workspaces synced, or null if there's no ribbon on the current
