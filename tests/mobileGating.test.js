@@ -53,6 +53,7 @@ const stubs = {
   "./workspaceModal": { WorkspacesPlusPluginWorkspaceModal: class {} },
   "./modeModal": { WorkspacesPlusPluginModeModal: class {} },
   "./newWorkspaceModal": { NewWorkspaceModal: class {} },
+  "./workspaceMenu": { openWorkspaceMenu: noop },
   "./utils": { default: class {} },
   "monkey-around": { around: () => noop },
   "./workspaceCycle": { cycleWorkspace: noop },

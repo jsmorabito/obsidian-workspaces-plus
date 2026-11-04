@@ -13,6 +13,7 @@ import { WorkspacesPlusSettings, WorkspacesPlusSettingsTab, DEFAULT_SETTINGS, ap
 import { WorkspacesPlusPluginWorkspaceModal } from "./workspaceModal";
 import { WorkspacesPlusPluginModeModal } from "./modeModal";
 import { NewWorkspaceModal } from "./newWorkspaceModal";
+import { openWorkspaceMenu } from "./workspaceMenu";
 import { around } from "monkey-around";
 import Utils from "./utils";
 import { cycleWorkspace as runWorkspaceCycle } from "./workspaceCycle";
@@ -298,9 +299,7 @@ export default class WorkspacesPlus extends Plugin {
       // See the matching comment in addStatusBarIndicator() -- data-tooltip-position, not
       // aria-label-position, is what Obsidian's tooltip engine actually reads for placement.
       this.vaultSwitcherIcon.setAttribute("data-tooltip-position", "top");
-      this.registerDomEvent(this.vaultSwitcherIcon, "click", () =>
-        new WorkspacesPlusPluginWorkspaceModal(this, this.settings, true).open()
-      );
+      this.registerDomEvent(this.vaultSwitcherIcon, "click", evt => openWorkspaceMenu(this, evt));
     }
     if (!this.vaultSwitcherIcon.isConnected) {
       const actionsEl = document.body.querySelector<HTMLElement>(".workspace-drawer-vault-actions");
@@ -414,10 +413,13 @@ export default class WorkspacesPlus extends Plugin {
   updateBottomRibbonWorkspaceButton(): void {
     if (!this.bottomRibbonIconWorkspaces) {
       this.bottomRibbonIconWorkspaces = createDiv("clickable-icon side-dock-ribbon-action");
-      setTooltip(this.bottomRibbonIconWorkspaces, "Manage workspaces", { placement: "right" });
-      this.registerDomEvent(this.bottomRibbonIconWorkspaces, "click", () =>
-        new WorkspacesPlusPluginWorkspaceModal(this, this.settings, true).open()
-      );
+      setTooltip(this.bottomRibbonIconWorkspaces, "Switch workspace", { placement: "right" });
+      // Opens the lightweight Menu (see workspaceMenu.ts), not the full switcher modal -- this
+      // button only exists pinned to the ribbon's own bottom-left corner (see
+      // toggleWorkspaceRibbonButton()'s wantBottom branch above), the same awkward-mouse-trip
+      // corner the vault switcher icon sits in. The ribbon's "main" location (addRibbonIcon(),
+      // scrollable ribbon stack) still opens the modal -- it isn't pinned to a screen corner.
+      this.registerDomEvent(this.bottomRibbonIconWorkspaces, "click", evt => openWorkspaceMenu(this, evt));
     }
     if (!this.bottomRibbonIconWorkspaces.isConnected) {
       const settingsEl = document.body.querySelector<HTMLElement>(".side-dock-settings");

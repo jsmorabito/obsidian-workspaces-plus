@@ -243,6 +243,16 @@ export default class Utils {
     return name.match(/^mode:/i) ? true : false;
   }
 
+  // Every real (non-Mode) workspace name, sorted -- the shared "which workspaces should a
+  // workspace picker show" list, used by both the quick switcher modal (workspaceModal.ts's
+  // getItems()) and the lightweight corner menu (workspaceMenu.ts's openWorkspaceMenu()), so the
+  // two never disagree about which workspaces are real.
+  getWorkspaceNames (): string[] {
+    return Object.keys(this.workspacePlugin.workspaces)
+      .filter(name => !this.isMode(name))
+      .sort();
+  }
+
   get isNativePluginEnabled () {
     return this.workspacePlugin.plugin._loaded;
   }

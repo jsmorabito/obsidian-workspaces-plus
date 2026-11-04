@@ -510,11 +510,7 @@ export class WorkspacesPlusPluginWorkspaceModal extends FuzzySuggestModal<string
   }
 
   getItems(): string[] {
-    return [
-      ...Object.keys(this.workspacePlugin.workspaces)
-        .filter(workspace => !/^mode:/i.test(workspace))
-        .sort(),
-    ];
+    return this.plugin.utils.getWorkspaceNames();
   }
 
   getItemText(item: string): string {

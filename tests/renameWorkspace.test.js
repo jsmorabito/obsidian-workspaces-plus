@@ -57,6 +57,17 @@ const makeModal = (Cls, workspaces, activeWorkspace) => {
   const modal = Object.create(Cls.prototype);
   const renameEvents = [];
   modal.workspacePlugin = { workspaces };
+  // getItems() (exercised via handleRename()'s post-rename selectedIdx lookup) routes through
+  // plugin.utils.getWorkspaceNames() -- see src/utils.ts -- so the test double needs a minimal
+  // stand-in for it, matching that helper's own filter+sort behavior.
+  modal.plugin = {
+    utils: {
+      getWorkspaceNames: () =>
+        Object.keys(workspaces)
+          .filter(name => !/^mode:/i.test(name))
+          .sort(),
+    },
+  };
   modal.activeWorkspace = activeWorkspace;
   modal.setWorkspace = name => renameEvents.push(`setWorkspace:${name}`);
   modal.chooser = {
