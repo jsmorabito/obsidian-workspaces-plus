@@ -841,6 +841,9 @@ export default class WorkspacesPlus extends Plugin {
               const workspace = this.workspaces[workspaceName];
               if (workspace) {
                 this.activeWorkspace = workspaceName;
+                // Captured before the restore chain below replaces the layout, so the
+                // per-workspace keepActiveFile option can reopen it afterwards.
+                const previousActiveFile = plugin.app.workspace.getActiveFile();
                 // Guards against a rapid second switch superseding this one while its restore
                 // chain is still in flight (see the generation checks below).
                 const generation = ++plugin.workspaceLoadGeneration;
@@ -903,6 +906,13 @@ export default class WorkspacesPlus extends Plugin {
                             })
                         )
                     );
+                    if (generation !== plugin.workspaceLoadGeneration) return;
+                    // Per-workspace opt-in: this workspace is a layout, not a set of files, so
+                    // put the file the user was reading back into the main pane. Runs after
+                    // restoreOpenFiles/applyFileOverrides so it wins over both.
+                    if (previousActiveFile && plugin.utils.getWorkspaceSettings(workspaceName)?.keepActiveFile) {
+                      await this.app.workspace.getLeaf(false).openFile(previousActiveFile);
+                    }
                     if (generation === plugin.workspaceLoadGeneration) this.saveData();
                   })
                   .catch((e: unknown) => {

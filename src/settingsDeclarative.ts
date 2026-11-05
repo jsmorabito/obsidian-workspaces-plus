@@ -9,6 +9,7 @@ import type { SettingDefinitionItem, SettingGroupItem, SettingDefinitionPage, Wo
 import type { WorkspacesPlusSettingsTab } from "./settings";
 import {
   TOGGLE_TEXT,
+  KEEP_ACTIVE_FILE_TEXT,
   WORKSPACE_BADGES_TEXT,
   WORKSPACE_BADGE_OPTIONS,
   WORKSPACE_RIBBON_LOCATION_TEXT,
@@ -242,6 +243,11 @@ function buildWorkspacePage(
         name: "Workspace icon color",
         render: setting => buildWorkspaceIconColorSetting(setting, workspaceSettings, onSave),
       },
+      {
+        name: KEEP_ACTIVE_FILE_TEXT.name,
+        desc: KEEP_ACTIVE_FILE_TEXT.desc,
+        control: { type: "toggle", key: `workspace-keep-active-file:${encodeURIComponent(workspaceName)}` },
+      },
       { type: "group", heading: "File overrides", items: overrides },
       {
         name: "Delete this workspace",
@@ -282,6 +288,10 @@ export function getControlValue(tab: WorkspacesPlusSettingsTab, key: string): un
     const { workspaceName, leafId } = parseOverrideKey(key);
     return tab.plugin.utils.getWorkspaceSettings(workspaceName)?.fileOverrides?.[leafId] ?? "";
   }
+  if (key.startsWith("workspace-keep-active-file:")) {
+    const workspaceName = decodeURIComponent(key.slice("workspace-keep-active-file:".length));
+    return tab.plugin.utils.getWorkspaceSettings(workspaceName)?.keepActiveFile ?? false;
+  }
   if (key.startsWith("mode-save-sidebar:")) {
     const modeName = decodeURIComponent(key.slice("mode-save-sidebar:".length));
     return tab.plugin.utils.getModeSettings(modeName)?.saveSidebar ?? false;
@@ -310,6 +320,17 @@ export function setControlValue(tab: WorkspacesPlusSettingsTab, key: string, val
       const overrideFile = value as string;
       if (overrideFile) settings.fileOverrides[leafId] = overrideFile;
       else delete settings.fileOverrides[leafId];
+    }
+    tab.plugin.workspacePlugin.saveData();
+    return;
+  }
+  if (key.startsWith("workspace-keep-active-file:")) {
+    const workspaceName = decodeURIComponent(key.slice("workspace-keep-active-file:".length));
+    const settings = tab.plugin.utils.getWorkspaceSettings(workspaceName);
+    if (settings) {
+      // Stored only when on, so an untouched workspace's settings blob stays as it was.
+      if (value) settings.keepActiveFile = true;
+      else delete settings.keepActiveFile;
     }
     tab.plugin.workspacePlugin.saveData();
     return;
