@@ -7,6 +7,7 @@
 import { Notice, PluginSettingTab } from "obsidian";
 import type { SettingDefinitionItem, SettingGroupItem, SettingDefinitionPage, Workspaces } from "obsidian";
 import type { WorkspacesPlusSettingsTab } from "./settings";
+import { FileSuggest } from "./suggesters/fileSuggest";
 import {
   TOGGLE_TEXT,
   WORKSPACE_BADGES_TEXT,
@@ -210,10 +211,17 @@ function buildWorkspacePage(
     .filter(leaf => leaf.id)
     .map(leaf => ({
       name: leaf.id,
-      control: {
-        type: "file",
-        key: `workspace-override:${encodeURIComponent(workspaceName)}:${encodeURIComponent(leaf.id)}`,
-        placeholder: leaf.file ?? "",
+      desc: "Enter a file path or template, e.g. Journal/{{date:YYYY-MM-DD}}.md. Leave blank to use the saved file.",
+      render: setting => {
+        const key = `workspace-override:${encodeURIComponent(workspaceName)}:${encodeURIComponent(leaf.id)}`;
+        // Keep suggestions optional: native file controls reject template strings.
+        // FileSuggest uses AbstractInputSuggest for separate settings windows (#120).
+        setting.setClass("file-override").addSearch(input => {
+          new FileSuggest(tab.app, input.inputEl);
+          input.setPlaceholder(leaf.file ?? "");
+          input.setValue(getControlValue(tab, key) as string);
+          input.onChange(value => setControlValue(tab, key, value));
+        });
       },
     }));
 
