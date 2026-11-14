@@ -173,6 +173,9 @@ declare module "obsidian" {
     // Hex color applied to that icon. Unset uses the app's normal icon color.
     iconColor?: string;
     fileOverrides?: Record<string, string>;
+    // When true, the file that was active before this workspace loaded is reopened in the
+    // main pane afterwards, instead of the file saved with the layout. Unset means off.
+    keepActiveFile?: boolean;
     trackedFiles?: Record<string, string>;
     explorerFoldState?: unknown;
     saveSidebar?: boolean;
