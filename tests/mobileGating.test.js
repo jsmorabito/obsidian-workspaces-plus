@@ -57,6 +57,7 @@ const stubs = {
   "./utils": { default: class {} },
   "monkey-around": { around: () => noop },
   "./workspaceCycle": { cycleWorkspace: noop },
+  "./settingsDeclarative": { refreshIfDeclarative: noop },
 };
 const fakeRequire = id => {
   if (id in stubs) return stubs[id];

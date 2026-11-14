@@ -17,6 +17,7 @@ import { openWorkspaceMenu } from "./workspaceMenu";
 import { around } from "monkey-around";
 import Utils from "./utils";
 import { cycleWorkspace as runWorkspaceCycle } from "./workspaceCycle";
+import { refreshIfDeclarative } from "./settingsDeclarative";
 
 export default class WorkspacesPlus extends Plugin {
   settings: WorkspacesPlusSettings;
@@ -60,15 +61,20 @@ export default class WorkspacesPlus extends Plugin {
     this.registerEvent(
       this.app.internalPlugins.on("change", plugin => {
         if (plugin?.instance?.id == "workspaces") {
-          if (plugin?._loaded) {
-            // load
-            this.isNativePluginEnabled = true;
-            // this.setWorkspaceName();
+          this.isNativePluginEnabled = !!plugin._loaded;
+          // Both status bar items are created (just hidden) regardless of isNativePluginEnabled
+          // -- see addStatusBarIndicator -- so toggling the core plugin on/off live just needs to
+          // show/hide whatever's already there (and refresh their text, in case it went stale
+          // while hidden) rather than create/destroy anything.
+          if (this.isNativePluginEnabled) {
+            this.toggleWorkspaceStatusBarItem();
+            this.statusBarMode?.show();
+            this.setWorkspaceName();
           } else {
-            // unload
-            this.isNativePluginEnabled = false;
-            // this.setWorkspaceName();
+            this.statusBarWorkspace?.hide();
+            this.statusBarMode?.hide();
           }
+          refreshIfDeclarative(this.settingsTab);
         }
       })
     );
@@ -514,15 +520,19 @@ export default class WorkspacesPlus extends Plugin {
     let modeText = this.utils.getActiveModeDisplayName();
     statusBarItem.createSpan({
       cls: "status-bar-item-segment name",
-      text: !this.isNativePluginEnabled
-        ? "Error: The Workspaces core plugin is disabled"
-        : modalType == "workspace"
-        ? this.utils.activeWorkspace
-        : modeText,
+      text: modalType == "workspace" ? this.utils.activeWorkspace : modeText,
       prepend: false,
     });
     // register click handler
     statusBarItem.addEventListener("click", evt => this.onStatusBarClick(evt, modalType));
+    // Nothing to switch between without the core plugin -- rather than showing a status bar
+    // item that just says so (and does nothing on click, see onStatusBarClick above), keep it
+    // hidden until the core plugin is enabled. Still creating the item (rather than skipping it
+    // outright) keeps this[itemName] a reliable "setup already ran" marker -- disableModesFeature
+    // depends on statusBarMode being set exactly when enableModesFeature ran, regardless of
+    // whether the core plugin happened to be enabled at the time. The "change" listener in
+    // onload() shows it (and refreshes its text) once the core plugin is enabled.
+    if (!this.isNativePluginEnabled) statusBarItem.hide();
   }
 
   onStatusBarClick(evt: MouseEvent, modalType: string) {
@@ -542,9 +552,7 @@ export default class WorkspacesPlus extends Plugin {
 
   setWorkspaceName = debounce(
     () => {
-      if (!this.isNativePluginEnabled) {
-        this.changeWorkspaceButton?.setText("Error: the workspaces core plugin is disabled");
-      } else {
+      if (this.isNativePluginEnabled) {
         this.changeWorkspaceButton?.setText(this.utils.activeWorkspace);
         this.updateStatusBarIcon();
         this.updateVaultSwitcherIcon();

@@ -381,6 +381,29 @@ export function getChildIds (split: WorkspaceLayoutNode, leafs: ChildLeafSummary
   return leafs;
 }
 
+// Shared between display() (below) and getSettingDefinitions()'s own "please enable" screen in
+// settingsDeclarative.ts, same rationale as TOGGLE_TEXT above: one source of truth for the
+// wording so the two renderers can't drift apart.
+export const CORE_PLUGIN_DISABLED_TEXT: ToggleText = {
+  name: "Open core plugins settings",
+  desc: "This plugin builds on Obsidian's built-in workspaces core plugin.",
+};
+
+// Settings.open() isn't needed here: both call sites below only run while this plugin's own
+// settings tab is already being rendered, which Obsidian only does while the settings window
+// itself is open.
+//
+// Only gets the user to the core-plugins *list* -- it's Obsidian's own tab, not one we render,
+// so there's no official (or working, in practice) way to deep-link straight to a single row
+// inside it; the user still has to scroll to "Workspaces" themselves.
+//
+// The core-plugins tab's real id is "plugins" (confirmed against Obsidian's own source -- its
+// SettingTab subclass sets `this.id = "plugins"`), not the more guessable "core-plugins", which
+// is a vault config filename (core-plugins.json) with no connection to openTabById.
+export function openCorePluginsSettings(app: App): void {
+  app.setting.openTabById("plugins");
+}
+
 export class WorkspacesPlusSettingsTab extends PluginSettingTab {
   plugin: WorkspacesPlus;
 
@@ -405,6 +428,12 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
       new Setting(containerEl)
         .setName("Please enable the workspaces plugin under core plugins before using this plugin")
         .setHeading();
+      new Setting(containerEl)
+        .setName(CORE_PLUGIN_DISABLED_TEXT.name)
+        .setDesc(CORE_PLUGIN_DISABLED_TEXT.desc)
+        .addButton(button =>
+          button.setButtonText(CORE_PLUGIN_DISABLED_TEXT.name).onClick(() => openCorePluginsSettings(this.app))
+        );
       return;
     }
     new Setting(containerEl).setName("Quick switcher").setHeading();

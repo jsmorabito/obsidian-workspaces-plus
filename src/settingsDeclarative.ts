@@ -28,12 +28,15 @@ import {
 // those call sites are themselves only ever reached once Obsidian has already chosen the
 // declarative renderer, i.e. only on 1.13.0+).
 export function refreshIfDeclarative(tab: WorkspacesPlusSettingsTab): void {
-  (tab as unknown as { update?: () => void }).update?.();
+  (tab as unknown as { update?: () => void } | undefined)?.update?.();
 }
 
 export function getSettingDefinitions(tab: WorkspacesPlusSettingsTab): SettingDefinitionItem[] {
   if (!tab.plugin.utils.isNativePluginEnabled) {
-    return [{ name: "Please enable the workspaces plugin under core plugins before using this plugin" }];
+    // This rarely-seen screen is simple enough to not need its own declarative items: return none
+    // at all, and Obsidian falls back to display() (renderSettings() below) whenever this returns
+    // an empty array, same as it does on pre-1.13.0 versions that lack this API entirely.
+    return [];
   }
 
   const { workspaces } = tab.plugin.workspacePlugin;
