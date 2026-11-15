@@ -779,6 +779,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
         }
         new Setting(subContainerEL)
           .setName(leaf.id)
+          .setDesc("Enter a file path or template, e.g. Journal/{{date:YYYY-MM-DD}}.md. Leave blank to use the saved file.")
           .setClass("file-override")
           .addSearch(cb => {
             new FileSuggest(this.app, cb.inputEl);
@@ -792,6 +793,7 @@ export class WorkspacesPlusSettingsTab extends PluginSettingTab {
               if (!workspaceSettings.fileOverrides) workspaceSettings.fileOverrides = {};
               if (overrideFile) workspaceSettings.fileOverrides[leaf.id] = overrideFile;
               else delete workspaceSettings.fileOverrides[leaf.id];
+              this.plugin.workspacePlugin.saveData();
             });
           });
       });
