@@ -852,8 +852,10 @@ export default class WorkspacesPlus extends Plugin {
                     console.error("failed to restore files:", e);
                   })
                   .then(async () => {
+                    await plugin.utils.waitForLayoutReady();
                     // A newer switch started while restore was running -- applying this
                     // (now-stale) layout would revert the user's screen back to it.
+                    // No await between this check and changeLayout(), so they can't interleave.
                     if (generation !== plugin.workspaceLoadGeneration) return;
                     // Captured here, right before use, rather than at the top of loadWorkspace --
                     // the restore chain above can await real file I/O, and grabbing the ribbon

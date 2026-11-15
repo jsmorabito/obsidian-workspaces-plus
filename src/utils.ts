@@ -261,7 +261,8 @@ export default class Utils {
     if (this.isMode(name)) return this.getWorkspace(name);
   }
 
-  loadMode (workspaceName: string, modeName: string) {
+  async loadMode (workspaceName: string, modeName: string) {
+    await this.waitForLayoutReady();
     const workspace = this.getWorkspace(workspaceName);
     const workspaceSettings = this.getWorkspaceSettings(workspaceName);
     const mode = this.getMode(modeName);
@@ -435,6 +436,14 @@ export default class Utils {
 
   updateDarkModeFromOS (settings: Record<string, unknown>) {
     settings["theme"] = this.getDarkModeFromOS();
+  }
+
+  // Obsidian's changeLayout() silently does nothing while another layout is still being set.
+  // A switch could then "finish" with the previous workspace on screen and autosave it under
+  // the new name, so every layout change waits for the in-flight one first.
+  async waitForLayoutReady (): Promise<void> {
+    // ponytail: 50ms poll; Obsidian has no event for setLayout() completion.
+    while (!this.app.workspace.layoutReady) await new Promise(resolve => window.setTimeout(resolve, 50));
   }
 
   mergeSidebarLayout (newLayout: Workspaces, { skipSidebarPreserve = false }: { skipSidebarPreserve?: boolean } = {}) {
