@@ -83,6 +83,14 @@ declare module "obsidian" {
     };
   }
 
+  export interface WorkspaceRibbon {
+    // Undocumented. Obsidian's own ribbon code calls this whenever an icon is
+    // dragged, hidden, or unhidden; `persist` is true when the change should be
+    // written into the active workspace's `left-ribbon` layout key (false for a
+    // re-render, e.g. while a workspace is loading).
+    onChange?: (persist: boolean) => void;
+  }
+
   export interface InstalledPlugin {
     enabled: boolean;
     _loaded: boolean;

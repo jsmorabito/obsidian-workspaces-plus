@@ -58,6 +58,7 @@ export default class WorkspacesPlus extends Plugin {
     this.workspacePlugin = this.utils.workspacePlugin;
     this.isNativePluginEnabled = this.utils.isNativePluginEnabled;
     this.installWorkspaceHooks();
+    this.installRibbonSaveHook();
     this.registerEvent(
       this.app.internalPlugins.on("change", plugin => {
         if (plugin?.instance?.id == "workspaces") {
@@ -921,6 +922,28 @@ export default class WorkspacesPlus extends Plugin {
             this.app.workspace.trigger("workspace-load", workspaceName);
             return result;
           };
+        },
+      })
+    );
+  }
+
+  // Ribbon drags/hide/unhide don't fire "layout-change" (onLayoutChange's event), so without
+  // this, auto-save on change never captures a reordered or hidden ribbon icon. Obsidian's own
+  // drag-to-reorder calls leftRibbon.onChange(true) directly; wrap it instead of synthesizing a
+  // "layout-change" event, since other plugins (e.g. Commander) listen for that event themselves.
+  // Other plugins (Commander included) patch this same property too, but with a hand-rolled
+  // save-original/restore-if-still-mine pattern that leaks if it's not the topmost wrapper at
+  // unload time. Use around() (as installWorkspaceHooks does above) instead: its remover always
+  // falls through to the original regardless of wrap/unwrap order, so this stays safe no matter
+  // which plugin wraps or unwraps first.
+  installRibbonSaveHook() {
+    const ribbon = this.app.workspace.leftRibbon;
+    if (!ribbon || typeof ribbon.onChange !== "function") return;
+    this.register(
+      around(ribbon, {
+        onChange: old => (persist: boolean) => {
+          old.call(ribbon, persist);
+          if (persist) this.onLayoutChange();
         },
       })
     );
