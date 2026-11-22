@@ -8,7 +8,8 @@
     "build": "rollup --config rollup.config.js --environment BUILD:production",
     "test": "node tests/workspaceCycle.test.js && node tests/mobileGating.test.js && node tests/renameWorkspace.test.js && node tests/sidebarSync.test.js && node tests/createBlankWorkspace.test.js && node tests/ribbonAutoSave.test.js",
     "lint": "eslint .",
-    "release": "auto shipit"
+    "release": "auto shipit",
+    "postinstall": "patch-package"
   },
   "keywords": [],
   "author": "NothingIslost <[@nothingislost](https://github.com/nothingislost)>",
@@ -25,6 +26,7 @@
     "eslint-plugin-obsidianmd": "^0.4.1",
     "globals": "^17.11.0",
     "obsidian": "^1.1.1",
+    "patch-package": "^8.0.1",
     "rollup": "^2.32.1",
     "tslib": "^2.2.0",
     "typescript": "^5.4.5"

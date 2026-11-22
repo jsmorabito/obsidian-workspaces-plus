@@ -1,0 +1,13 @@
+diff --git a/node_modules/@auto-it/core/dist/git.js b/node_modules/@auto-it/core/dist/git.js
+index 96595bd..9450fb2 100644
+--- a/node_modules/@auto-it/core/dist/git.js
++++ b/node_modules/@auto-it/core/dist/git.js
+@@ -242,7 +242,7 @@ class Git {
+                 : "";
+             const log = await gitlog_1.gitlogPromise({
+                 repo: process.cwd(),
+-                number: Number.MAX_SAFE_INTEGER,
++                number: 2147483647,
+                 fields: ["hash", "authorName", "authorEmail", "rawBody"],
+                 // If start === firstCommit then we want to include that commit in the changelog
+                 // Otherwise it was that last release and should not be included in the release.
