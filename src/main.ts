@@ -40,7 +40,7 @@ export default class WorkspacesPlus extends Plugin {
   // enableModesFeature() checks it, so a later, user-triggered call to enableModesFeature()
   // (e.g. toggling modes on mid-session) still does its own onWorkspaceLoad() call as before.
   private startupWorkspaceLoadTriggered = false;
-  // Incremented on every non-mode loadWorkspace() invocation. Lets an in-flight restore chain
+  // Incremented on every loadWorkspace() invocation. Lets an in-flight restore chain
   // (restoreOpenFiles/applyFileOverrides -> changeLayout -> deferred-leaf loading -> saveData)
   // recognize it's been superseded by a newer workspace switch and bail out instead of
   // re-applying a stale layout or persisting stale data over the newer switch.
@@ -787,13 +787,6 @@ export default class WorkspacesPlus extends Plugin {
     }
   }
 
-  setLoadingStatus(): void {
-    this.workspaceLoading = true;
-    window.setTimeout(() => {
-      this.workspaceLoading = false;
-    }, 2000);
-  }
-
   updateGlobalSettings(): void {
     this.settings.globalSettings = Object.assign({}, this.settings.globalSettings, this.app.vault.config);
     void this.saveData(this.settings);
@@ -816,7 +809,7 @@ export default class WorkspacesPlus extends Plugin {
         saveWorkspace(old) {
           return function saveWorkspace(workspaceName, ...etc) {
             // TODO: Does this prevent saving a workspace with no name?
-            if (!workspaceName || !plugin.isNativePluginEnabled) return;
+            if (!workspaceName || !plugin.isNativePluginEnabled || plugin.workspaceLoading) return;
             let settings;
             settings = plugin.utils.getWorkspaceSettings(workspaceName);
             // old.call()'s TS typing falls back to `any` for this arity, same as bind() elsewhere in this codebase
@@ -837,9 +830,10 @@ export default class WorkspacesPlus extends Plugin {
         },
         loadWorkspace(old) {
           return function loadWorkspace(workspaceName, ...etc) {
-            if (!workspaceName || !plugin.isNativePluginEnabled) return;
-            plugin.setLoadingStatus();
-            let result;
+            if (!workspaceName || !plugin.isNativePluginEnabled || !this.workspaces[workspaceName]) return;
+            const generation = ++plugin.workspaceLoadGeneration;
+            plugin.workspaceLoading = true;
+            let result: Promise<unknown>;
 
             if (plugin.modesEnabled && plugin.utils.isMode(workspaceName)) {
               // if the workspace being loaded is a mode, invoke the mode loader
@@ -850,9 +844,6 @@ export default class WorkspacesPlus extends Plugin {
               const workspace = this.workspaces[workspaceName];
               if (workspace) {
                 this.activeWorkspace = workspaceName;
-                // Guards against a rapid second switch superseding this one while its restore
-                // chain is still in flight (see the generation checks below).
-                const generation = ++plugin.workspaceLoadGeneration;
                 // Restore tracked files, then overrides -- sequential (not Promise.all) is
                 // intentional: when the same leaf is both tracked and overridden, the override
                 // must win, which only holds if it's applied after restoreOpenFiles.
@@ -861,7 +852,7 @@ export default class WorkspacesPlus extends Plugin {
                       .restoreOpenFiles(workspaceName, workspace)
                       .then(() => plugin.utils.applyFileOverrides(workspaceName, workspace))
                   : plugin.utils.applyFileOverrides(workspaceName, workspace);
-                restore
+                result = restore
                   .catch((e: unknown) => {
                     // Swallow and continue to changeLayout() regardless -- both
                     // restoreOpenFiles and applyFileOverrides already isolate per-leaf
@@ -870,8 +861,10 @@ export default class WorkspacesPlus extends Plugin {
                     console.error("failed to restore files:", e);
                   })
                   .then(async () => {
+                    await plugin.utils.waitForLayoutReady();
                     // A newer switch started while restore was running -- applying this
                     // (now-stale) layout would revert the user's screen back to it.
+                    // No await between this check and changeLayout(), so they can't interleave.
                     if (generation !== plugin.workspaceLoadGeneration) return;
                     // Captured here, right before use, rather than at the top of loadWorkspace --
                     // the restore chain above can await real file I/O, and grabbing the ribbon
@@ -913,14 +906,16 @@ export default class WorkspacesPlus extends Plugin {
                         )
                     );
                     if (generation === plugin.workspaceLoadGeneration) this.saveData();
-                  })
-                  .catch((e: unknown) => {
-                    console.error("failed to apply workspace layout:", e);
                   });
               }
             }
             this.app.workspace.trigger("workspace-load", workspaceName);
-            return result;
+            return Promise.resolve(result).then(() => {
+              if (generation === plugin.workspaceLoadGeneration) plugin.workspaceLoading = false;
+            }, (e: unknown) => {
+              // Keep saves blocked if the label and visible layout may still disagree.
+              console.error("failed to apply workspace layout:", e);
+            });
           };
         },
       })
